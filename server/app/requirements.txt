@@ -1,0 +1,12 @@
+fastapi[standard]
+pydantic
+websockets
+pyjwt
+pwdlib[argon2]
+python-multipart
+psycopg2-binary
+python-dotenv
+pydantic-settings
+asyncpg 
+databases
+redis
