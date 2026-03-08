@@ -12,10 +12,10 @@ The original project is a full-stack real-time chat application built with FastA
 
 | Name | GitHub |
 |---|---|
-| Tijany Momoh | — |
-| William Lim | — |
-| Drew Butler | — |
-| Joshua Castaneda | — |
+| Tijany Momoh | 404Mamba |
+| William Lim | FrewtyPebbles|
+| Drew Butler | Druwby |
+| Joshua Castaneda | ccastaneda85 |
 
 ---
 
@@ -40,15 +40,15 @@ The original project is a full-stack real-time chat application built with FastA
                         │     (CDN + TLS termination)         │
                         └──────────────┬──────────────────────┘
                                        │
-                 ┌─────────────────────┼─────────────────────┐
-                 │                     │                       │
-                 ▼                     ▼                       │
-        ┌──────────────┐    ┌─────────────────────┐          │
-        │  Amazon S3   │    │  Application Load   │          │
-        │ (React SPA / │    │  Balancer (ALB)     │          │
-        │static assets)│    │                     │          │
-        └──────────────┘    └──────────┬──────────┘          │
-                                       │                       │
+                 ┌─────────────────────┼──────────────────────┐
+                 │                     │                      │
+                 ▼                     ▼                      │
+        ┌──────────────┐    ┌─────────────────────┐           │
+        │  Amazon S3   │    │  Application Load   │           │
+        │ (React SPA / │    │  Balancer (ALB)     │           │
+        │static assets)│    │                     │           │
+        └──────────────┘    └──────────┬──────────┘           │
+                                       │                      │
                          ┌─────────────┴─────────────┐        │
                          │                           │        │
                          ▼                           ▼        │
