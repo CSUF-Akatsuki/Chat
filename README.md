@@ -36,7 +36,7 @@ The original project is a full-stack real-time chat application built with FastA
 
 ```
                         ┌─────────────────────────────────────┐
-                        │           Amazon CloudFront          │
+                        │           Amazon CloudFront         │
                         │     (CDN + TLS termination)         │
                         └──────────────┬──────────────────────┘
                                        │
