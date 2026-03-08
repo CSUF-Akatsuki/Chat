@@ -1,373 +1,289 @@
-# FastAPI & WebSockets Learning - Real-Time Chat Application
+# Cloud-Native Messaging Application on AWS
 
-> Because carrier pigeons are so last millennium 🕊️
+A secure, scalable, browser-based real-time messaging application deployed on Amazon Web Services. Built on a microservice architecture using containerized FastAPI backends and a React frontend, this project demonstrates modern cloud-native DevOps practices including infrastructure as code, CI/CD, autoscaling, and observability.
 
-A full-stack real-time chat application built with FastAPI, React, WebSockets, PostgreSQL, and Redis. This project demonstrates modern web application architecture with real-time communication, scalable backend design, and containerized deployment. Basically, it's what happens when you combine speed, scale, and a healthy obsession with async operations.
+## Attribution
 
-## 🌟 Features
+This project is based on [fast-api-and-websockets-learning](https://github.com/anuz505/fast-api-and-websockets-learning) by [Anuj Bhandari](https://github.com/anuz505).
 
-- **Real-time Messaging**: WebSocket-based chat that's faster than your thoughts (almost)
-- **User Authentication**: JWT-based auth with Argon2 hashing—because `password123` deserves better protection
-- **Friend System**: Send/accept friend requests—now with 100% less awkward face-to-face interaction
-- **User Discovery**: Find people to chat with (results may vary based on your charisma)
-- **Multi-Instance Backend**: Horizontally scalable because one backend is never enough
-- **Containerized Architecture**: Docker Compose for deployment so smooth, it's borderline illegal
-- **Modern Frontend**: React 19 with TypeScript—type safety that actually makes you feel safe
-- **Type-Safe**: Full TypeScript + Pydantic because runtime errors are _so_ 2015
+The original project is a full-stack real-time chat application built with FastAPI, React, WebSockets, PostgreSQL, and Redis. This fork migrates the application to a production-grade AWS cloud-native deployment, replacing the local Docker Compose setup with managed AWS services, infrastructure as code, and a CI/CD pipeline.
 
-## 🏗️ Architecture
+## Team
 
-### System Architecture Diagram
+| Name | GitHub |
+|---|---|
+| Tijany Momoh | — |
+| William Lim | — |
+| Drew Butler | — |
+| Joshua Castaneda | — |
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        Client[React + TypeScript Client<br/>Port 5173]
-    end
+---
 
-    subgraph "Load Balancer"
-        NGINX[NGINX<br/>Reverse Proxy]
-    end
+## Features
 
-    subgraph "Backend Instances"
-        BE1[FastAPI Backend 1<br/>Port 4001]
-        BE2[FastAPI Backend 2<br/>Port 4002]
-        BE3[FastAPI Backend 3<br/>Port 4003]
-    end
+- **Real-time Messaging**: WebSocket-based one-to-one and group chat
+- **User Authentication**: JWT-based auth with Argon2 password hashing
+- **Friend System**: Send and accept friend requests
+- **User Discovery**: Search and find other users
+- **Horizontally Scalable Backend**: Multiple FastAPI instances coordinated via Redis Pub/Sub
+- **Cloud-Native Deployment**: Fully managed AWS infrastructure with autoscaling
 
-    subgraph "Data Layer"
-        Redis[(Redis<br/>Pub/Sub & Caching<br/>Port 6379)]
-        Postgres[(PostgreSQL<br/>Primary Database<br/>Port 5432)]
-    end
+---
 
-    Client -->|HTTP/WS| NGINX
-    NGINX -->|Load Balance| BE1
-    NGINX -->|Load Balance| BE2
-    NGINX -->|Load Balance| BE3
+## Architecture
 
-    BE1 <-->|Pub/Sub| Redis
-    BE2 <-->|Pub/Sub| Redis
-    BE3 <-->|Pub/Sub| Redis
+### AWS Architecture Overview
 
-    BE1 -->|SQL Queries| Postgres
-    BE2 -->|SQL Queries| Postgres
-    BE3 -->|SQL Queries| Postgres
-
-    style Client fill:#61dafb
-    style NGINX fill:#009639
-    style BE1 fill:#009688
-    style BE2 fill:#009688
-    style BE3 fill:#009688
-    style Redis fill:#dc382d
-    style Postgres fill:#336791
+```
+                        ┌─────────────────────────────────────┐
+                        │           Amazon CloudFront          │
+                        │     (CDN + TLS termination)         │
+                        └──────────────┬──────────────────────┘
+                                       │
+                 ┌─────────────────────┼─────────────────────┐
+                 │                     │                       │
+                 ▼                     ▼                       │
+        ┌──────────────┐    ┌─────────────────────┐          │
+        │  Amazon S3   │    │  Application Load   │          │
+        │ (React SPA / │    │  Balancer (ALB)     │          │
+        │static assets)│    │                     │          │
+        └──────────────┘    └──────────┬──────────┘          │
+                                       │                       │
+                         ┌─────────────┴─────────────┐        │
+                         │                           │        │
+                         ▼                           ▼        │
+              ┌──────────────────┐       ┌──────────────────┐ │
+              │   Auth Service   │       │   Chat Service   │ │
+              │  (ECS Fargate)   │       │  (ECS Fargate)   │ │
+              └────────┬─────────┘       └────────┬─────────┘ │
+                       │                          │           │
+              ┌────────┴──────────────────────────┘           │
+              │                                               │
+   ┌──────────┴──────────┐              ┌────────────────────┐│
+   │  Amazon RDS         │              │  Amazon            ││
+   │  PostgreSQL         │              │  ElastiCache Redis ││
+   │  (users, messages,  │              │  (pub/sub,         ││
+   │   chat history)     │              │   caching,         ││
+   └─────────────────────┘              │   presence)        ││
+                                        └────────────────────┘│
+                                                              │
+        ┌─────────────────────────────────────────────────────┘
+        │  Supporting Services
+        │  ┌────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+        └─▶│ Amazon ECR     │  │ AWS Secrets Mgr  │  │ Amazon CloudWatch│
+           │ (container     │  │ (credentials,    │  │ (logs, metrics,  │
+           │  registry)     │  │  JWT secrets)    │  │  monitoring)     │
+           └────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
-### WebSocket Communication Flow
+### WebSocket Message Flow
 
 ```mermaid
 sequenceDiagram
     participant User1 as User 1 Browser
-    participant BE1 as Backend Instance 1
-    participant Redis as Redis Pub/Sub
-    participant BE2 as Backend Instance 2
-    participant User2 as User 2 Browser
-    participant DB as PostgreSQL
+    participant ALB as ALB
+    participant Auth as Auth Service (Fargate)
+    participant Chat as Chat Service (Fargate)
+    participant Redis as ElastiCache Redis
+    participant DB as RDS PostgreSQL
 
-    User1->>BE1: Connect WebSocket + JWT
-    BE1->>BE1: Validate JWT Token
-    BE1->>Redis: Subscribe to user channel
-    BE1-->>User1: Connection Established
+    User1->>ALB: POST /auth/login
+    ALB->>Auth: Route to Auth Service
+    Auth->>DB: Validate credentials
+    Auth-->>User1: JWT Token
 
-    User2->>BE2: Connect WebSocket + JWT
-    BE2->>BE2: Validate JWT Token
-    BE2->>Redis: Subscribe to user channel
-    BE2-->>User2: Connection Established
+    User1->>ALB: Connect WebSocket + JWT
+    ALB->>Chat: Route to Chat Service
+    Chat->>Chat: Validate JWT
+    Chat->>Redis: Subscribe to user channel
+    Chat-->>User1: Connection Established
 
-    User1->>BE1: Send Message to User 2
-    BE1->>DB: Store Message
-    DB-->>BE1: Message Saved
-    BE1->>Redis: Publish to User 2 channel
-    Redis->>BE2: Receive Message
-    BE2->>User2: Deliver Message via WebSocket
-
-    User2->>BE2: Send Reply to User 1
-    BE2->>DB: Store Message
-    DB-->>BE2: Message Saved
-    BE2->>Redis: Publish to User 1 channel
-    Redis->>BE1: Receive Message
-    BE1->>User1: Deliver Message via WebSocket
+    User1->>Chat: Send message
+    Chat->>DB: Persist message
+    Chat->>Redis: Publish to recipient channel
+    Redis->>Chat: Deliver to recipient instance
+    Chat-->>User2: WebSocket delivery
 ```
-
-## 🛠️ Tech Stack
-
-### Backend
-
-- **FastAPI**: Because life's too short for slow frameworks
-- **WebSockets**: Real-time bidirectional communication (aka talking and listening simultaneously)
-- **PostgreSQL**: The relational database that's been handling relationships since before you were born
-- **Redis**: Lightning-fast pub/sub—think of it as the office gossip, but productive
-- **asyncpg**: Async PostgreSQL driver (blocking is for traffic, not databases)
-- **JWT**: Token-based authentication (cookies are for eating, not sessions)
-- **Argon2**: Password hashing so secure, even you'll forget your password
-- **Pydantic**: Data validation that catches bugs before they catch you
-
-### Frontend
-
-- **React 19**: The UI library that keeps getting better (like fine wine, but nerdier)
-- **TypeScript**: JavaScript with a safety net and adult supervision
-- **Vite**: Build tool so fast, you'll think your terminal is lying
-- **Redux Toolkit**: State management without the boilerplate headaches
-- **React Query**: Server state that actually makes sense
-- **React Router**: Client-side routing for people who like SPAs (the app kind, not the relaxation kind)
-- **TailwindCSS 4**: Utility classes for when you're tired of naming things
-- **Axios**: HTTP client that's been reliably fetching data since the jQuery era
-
-### DevOps
-
-- **Docker**: Containerization
-- **Docker Compose**: Multi-container orchestration
-- **NGINX**: Reverse proxy and load balancer
-
-## 📁 Project Structure
-
-```
-fast_api/
-├── server/                 # FastAPI backend
-│   ├── app/
-│   │   ├── main.py        # Application entry point
-│   │   ├── api/           # API routes
-│   │   │   ├── auth.py    # Authentication endpoints
-│   │   │   ├── friends.py # Friend management
-│   │   │   ├── message.py # Message endpoints
-│   │   │   └── websocket.py # WebSocket handler
-│   │   ├── core/          # Core functionality
-│   │   ├── db/            # Database models and connection
-│   │   └── models/        # Pydantic models
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── client/                # React frontend
-│   ├── src/
-│   │   ├── App.tsx        # Main app component
-│   │   ├── components/    # React components
-│   │   ├── api/           # API client functions
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── store/         # Redux store
-│   │   └── types/         # TypeScript types
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── nginx/                 # NGINX configuration
-│   └── nginx.conf
-│
-├── docker-compose.yml     # Container orchestration
-└── readme.md             # This file
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Docker and Docker Compose (cause "it works on my machine" isn't good enough)
-- Node.js 18+ (for local frontend development)
-- Python 3.11+ (for local backend development)
-- Coffee ☕ (optional but highly recommended)
-
-### Quick Start with Docker
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/anuz505/fast-api-and-websockets-learning.git
-   cd fast-api-and-websockets-learning
-   ```
-
-2. **Start all services**
-
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **Access the application**
-   - Backend instances:
-     - http://localhost:4001
-     - http://localhost:4002
-     - http://localhost:4003
-   - PostgreSQL: localhost:5432
-   - Redis: localhost:6379
-
-### Local Development
-
-#### Backend Setup
-
-1. **Create virtual environment**
-
-   ```bash
-   python -m venv myvenv
-   myvenv\Scripts\activate  # Windows
-   # source myvenv/bin/activate  # Linux/Mac
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   cd server/app
-   pip install -r requirements.txt
-   ```
-
-3. **Set environment variables**
-   Create `.env` file in `server/app/`:
-
-   ```env
-   POSTGRES_HOST=localhost
-   POSTGRES_PORT=5432
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=postgres
-   POSTGRES_DB=chat-app
-   REDIS_HOST=localhost
-   REDIS_PORT=6379
-   SECRET_KEY=your-secret-key-here
-   ```
-
-4. **Run the server**
-   ```bash
-   uvicorn main:app --reload --port 8000
-   ```
-
-#### Frontend Setup
-
-1. **Install dependencies**
-
-   ```bash
-   cd client
-   npm install
-   ```
-
-2. **Start development server**
-
-   ```bash
-   npm run dev
-   ```
-
-3. **Access the app**
-   - Open http://localhost:5173
-
-## 📡 API Endpoints
-
-### Authentication
-
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login and get JWT token
-- `GET /api/auth/me` - Get current user info
-
-### Friends
-
-- `GET /api/friends` - Get user's friends
-- `POST /api/friends/request` - Send friend request
-- `POST /api/friends/accept` - Accept friend request
-- `GET /api/friends/suggestions` - Get friend suggestions
-- `GET /api/friends/requests` - Get pending friend requests
-
-### Messages
-
-- `GET /api/messages/{user_id}` - Get conversation with user
-- `POST /api/messages` - Send a message
-
-### WebSocket
-
-- `WS /ws` - WebSocket connection for real-time messaging
-  - First message must be auth: `{"type": "auth", "content": "JWT_TOKEN"}`
-
-## 🔐 Authentication Flow
-
-1. User registers or logs in via REST API
-2. Server validates credentials and returns JWT token
-3. Client stores token (localStorage/sessionStorage)
-4. For WebSocket connection, client sends token in first message
-5. Server validates token and associates connection with user
-6. All subsequent messages are authenticated
-
-## 🌐 Real-Time Messaging
-
-The application uses WebSockets for real-time communication (no carrier pigeons were harmed in the making of this app):
-
-1. **Connection**: Client connects and authenticates via WebSocket
-2. **Redis Pub/Sub**: Each backend instance subscribes to Redis channels (like a group chat for servers)
-3. **Message Flow**:
-   - User sends message via WebSocket
-   - Backend stores in PostgreSQL
-   - Backend publishes to Redis channel
-   - All instances receive the message
-   - Target instance delivers to recipient
-
-This architecture allows horizontal scaling with multiple backend instances—because sometimes one server just isn't cool enough.
-
-## 📦 Docker Services
-
-The application runs 5 main services (it's like The Avengers, but for containers):
-
-1. **postgres** - PostgreSQL database
-2. **redis** - Redis for pub/sub and caching
-3. **backend1, backend2, backend3** - Three FastAPI instances (triple threat for horizontal scaling)
-4. **nginx** - Load balancer
-
-## 🔧 Configuration
-
-### Backend Configuration
-
-Edit `server/app/core/config.py` for application settings
-
-### Frontend Configuration
-
-Edit `client/vite.config.ts` and environment variables
-
-### Docker Configuration
-
-Edit `docker-compose.yml` to adjust services, ports, or resources
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is open source and available for learning purposes.
-
-## 👤 Author
-
-**Anuj Bhandari**
-
-- GitHub: [@anuz505](https://github.com/anuz505)
-
-## 🙏 Acknowledgments
-
-- FastAPI documentation and community
-- React and TypeScript communities
-- Redis and PostgreSQL teams
-- Docker and containerization best practices
-
-## 📚 Learning Resources
-
-This project demonstrates:
-
-- WebSocket implementation in FastAPI
-- React with TypeScript and modern hooks
-- Redis pub/sub pattern for distributed systems
-- Docker Compose for multi-container applications
-- JWT authentication
-- Async Python with asyncpg
-- State management with Redux Toolkit
-
-## 🐛 Known Issues
-
-- None yet, but they're probably hiding somewhere (they always are)
 
 ---
 
-**Happy Coding! 🚀**
+## Technology Stack
 
-_P.S. - If you found a bug, congratulations! You're now a contributor. PRs welcome._
+### Frontend
+- **React** — UI framework
+- **TypeScript** — Type safety
+- **Vite** — Build tool
+- **Redux Toolkit** — State management
+- **React Query** — Server state
+- **TailwindCSS 4** — Styling
+- **Axios** — HTTP client
+
+### Backend
+- **FastAPI** — Python async web framework
+- **WebSockets** — Real-time bidirectional messaging
+- **asyncpg** — Async PostgreSQL driver
+- **JWT + Argon2** — Authentication and password hashing
+- **Pydantic** — Data validation
+
+### AWS Infrastructure
+| Service | Role |
+|---|---|
+| Amazon ECS + Fargate | Run and autoscale containerized microservices |
+| Amazon ECR | Docker image registry |
+| Application Load Balancer (ALB) | Reverse proxy, TLS termination, routing |
+| Amazon RDS for PostgreSQL | Managed relational database |
+| Amazon ElastiCache for Redis | Pub/Sub, caching, and user presence |
+| Amazon S3 + CloudFront | Host and deliver the React frontend globally |
+| AWS Secrets Manager | Store credentials, JWT secrets, and config |
+| Amazon CloudWatch | Centralized logging, metrics, and alerting |
+
+### DevOps
+- **Terraform** — Infrastructure as Code
+- **GitHub Actions** — CI/CD pipeline
+- **Docker / Docker Compose** — Local development and image builds
+- **GitHub** — Version control
+- **GitHub Copilot / Claude** — Coding assistants
+
+---
+
+## Project Structure
+
+```
+Chat/
+├── server/                 # FastAPI backend
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── api/
+│   │   │   ├── auth.py
+│   │   │   ├── friends.py
+│   │   │   ├── message.py
+│   │   │   └── websocket.py
+│   │   ├── core/
+│   │   ├── db/
+│   │   └── models/
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── components/
+│   │   ├── api/
+│   │   ├── hooks/
+│   │   ├── store/
+│   │   └── types/
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── terraform/              # Infrastructure as Code
+│   ├── main.tf
+│   ├── ecs.tf
+│   ├── rds.tf
+│   ├── elasticache.tf
+│   ├── alb.tf
+│   ├── cloudfront.tf
+│   └── variables.tf
+│
+├── .github/
+│   └── workflows/          # GitHub Actions CI/CD pipelines
+│
+├── docker-compose.yml      # Local development
+└── readme.md
+```
+
+---
+
+## Project Phases
+
+| Phase | Description |
+|---|---|
+| **Phase 1** | Requirements analysis and system design |
+| **Phase 2** | Application development (auth service, chat service, frontend) |
+| **Phase 3** | AWS infrastructure setup via Terraform |
+| **Phase 4** | Testing, CI/CD pipeline, and production deployment |
+
+---
+
+## Local Development
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Node.js 18+
+- Python 3.11+
+
+### Quick Start
+
+```bash
+git clone https://github.com/CSUF-Akatsuki/Chat.git
+cd Chat
+docker-compose up -d
+```
+
+Access:
+- Frontend: http://localhost:5173
+- Backend instances: http://localhost:4001, :4002, :4003
+
+### Backend Setup (without Docker)
+
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+cd server/app
+pip install -r requirements.txt
+```
+
+Create `server/app/.env`:
+
+```env
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=chat-app
+REDIS_HOST=localhost
+REDIS_PORT=6379
+SECRET_KEY=your-secret-key-here
+```
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+
+### Frontend Setup (without Docker)
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` — Register new user
+- `POST /api/auth/login` — Login and receive JWT token
+- `GET /api/auth/me` — Get current user info
+
+### Friends
+- `GET /api/friends` — List friends
+- `POST /api/friends/request` — Send friend request
+- `POST /api/friends/accept` — Accept friend request
+- `GET /api/friends/suggestions` — Get friend suggestions
+- `GET /api/friends/requests` — Get pending requests
+
+### Messages
+- `GET /api/messages/{user_id}` — Get conversation history
+- `POST /api/messages` — Send a message
+
+### WebSocket
+- `WS /ws` — Real-time messaging
+  - First message must authenticate: `{"type": "auth", "content": "<JWT_TOKEN>"}`
+
+---
+
+## License
+
+This project is open source and available for learning and educational purposes.
