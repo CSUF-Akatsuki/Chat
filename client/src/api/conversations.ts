@@ -1,4 +1,5 @@
-import axios, { AxiosError } from "axios";
+import axios, { type AxiosError } from "axios";
+import apiClient from "./axiosInstance";
 import type { Message, Conversations } from "../types/conversations-types";
 import store from "../store/store";
 export interface ApiError {
@@ -11,7 +12,7 @@ export async function getAllConversations() {
     if (!token) {
       throw new Error("Authentication required. Please log in.");
     }
-    const response = await axios.get<Conversations>(
+    const response = await apiClient.get<Conversations>(
       "/messages/conversations?limit=50&offset=0",
       {
         headers: { Authorization: `Bearer ${token}` },
@@ -35,7 +36,7 @@ export async function retrieverChatHistory(other_user_id: number) {
     if (!token) {
       throw new Error("Authentication required. Please log in");
     }
-    const response = await axios.get<Message[]>(
+    const response = await apiClient.get<Message[]>(
       `/messages/conversations/${other_user_id}?limit=50&offset=0`,
       { headers: { Authorization: `Bearer ${token}` } }
     );

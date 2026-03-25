@@ -22,10 +22,11 @@ class RedisServer:
                 host=settings.redis_host,
                 port=settings.redis_port,
                 db=settings.redis_db,
-                # password = REDIS_PASSWORD
+                password = settings.redis_password,
                 max_connections=50,
                 socket_timeout=None,  # No timeout for pubsub connections
                 socket_connect_timeout=5,
+                ssl=True,
             )
             self.redis_client = redis.Redis(
                 connection_pool=self.pool,

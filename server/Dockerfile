@@ -1,5 +1,5 @@
 # base image
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 # working directory
 WORKDIR /app
@@ -22,6 +22,9 @@ COPY ./server/app/ ./
 ENV PYTHONPATH=/app
 
 EXPOSE 8000
+
+RUN adduser --disabled-password --no-create-home appuser
+USER appuser
 
 # run fastapi server
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
