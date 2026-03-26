@@ -20,7 +20,7 @@ origins = [
     "http://127.0.0.1:5174",
     "http://localhost:8000",  # FastAPI docs
     "http://127.0.0.1:8000",  # FastAPI server
-    "https://YOUR_CLOUDFRONT_URL.cloudfront.net",  # TODO: replace in Phase 3
+    "https://d14v638rpcg3lp.cloudfront.net",
 ]
 
 

@@ -19,6 +19,7 @@ async def create_database_if_not_exists():
             user=settings.postgres_user,
             password=settings.postgres_password,
             database="postgres",  # Connect to default database
+            ssl="require",
         )
 
         # Check if our database exists
