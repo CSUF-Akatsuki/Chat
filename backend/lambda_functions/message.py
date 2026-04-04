@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from api.auth import get_current_user
-from core.logger import logger
-from models.messages import Message_Response
-from db import db_connection
+from shared.logger import logger
+from backend.models.messages import Message_Response
+from shared.db import db_connection
 
 message_router = APIRouter(prefix="/messages", tags=["messages"])
 

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
-from models.friends import FriendShipResponse, FriendRequest, FriendsProfile
+from backend.models.friends import FriendShipResponse, FriendRequest, FriendsProfile
 from api.auth import get_current_user
-from core.logger import logger
-from db.database import db_connection
+from shared.logger import logger
+from shared.db.database import db_connection
 
 friends_router = APIRouter(prefix="/friends", tags=["friends"])
 

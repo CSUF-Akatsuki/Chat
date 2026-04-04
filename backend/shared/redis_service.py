@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Callable
 import redis.asyncio as redis
-from core.config import settings
-from core.logger import logger
+from shared.config import settings
+from shared.logger import logger
 from redis.exceptions import ConnectionError, RedisError, TimeoutError
 import asyncio
 import json

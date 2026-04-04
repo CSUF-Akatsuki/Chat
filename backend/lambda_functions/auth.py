@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from starlette import status
 from pwdlib import PasswordHash
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from models.users_model import CreateUserRequest, User, Token, TokenData
-from db.database import get_user_by_email, get_user_by_username, db_connection
+from backend.models.users_model import CreateUserRequest, User, Token, TokenData
+from shared.db.database import get_user_by_email, get_user_by_username, db_connection
 import jwt
-from core.config import (
+from shared.config import (
     SECRET_KEY,
     ALGORITHM,
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -118,8 +118,8 @@ async def register(user: CreateUserRequest):
         )
     hash_password = get_hash_password(user.password)
     query = """
-        INSERT INTO users (email, username, hashed_password)
-        VALUES (:email, :username, :hashed_password)
+        INSERT INTO users (email, username)
+        VALUES (:email, :username)
         RETURNING id, email, username, created_at
     """
     new_user = await db_connection.fetch_one(

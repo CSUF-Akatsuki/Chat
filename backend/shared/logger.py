@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from core.config import settings
+from shared.config import settings
 
 
 class LoggerSetup:
