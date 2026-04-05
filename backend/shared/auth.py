@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal
-from models.users_model import CreateUserRequest, User
+from models.users_model import ConfirmRegistrationRequest, CreateUserRequest, User, UserLoginRequest
 from shared.logger import logger
 from pycognito import Cognito
 from pycognito.utils import TokenType
@@ -15,28 +15,28 @@ class AuthData:
     access_token:TokenType
     refresh_token:str
 
-async def login(username:str, password:str) -> None | AuthData:
+def login(login_request:UserLoginRequest) -> AuthData:
     try:
         u = Cognito(
             user_pool_id=AWS_COGNITO_USER_POOL_ID, 
             client_id=AWS_COGNITO_CLIENT_ID,
             client_secret=AWS_COGNITO_CLIENT_SECRET,
-            username=username
+            username=login_request.username
         )
 
-        u.authenticate(password=password)
+        u.authenticate(password=login_request.password)
         
-        logger.info(f"""User "{username}" authenticated successfuly.""")
+        logger.info(f"""User "{login_request.username}" authenticated successfuly.""")
 
         return AuthData(u.id_token, u.access_token, u.refresh_token)
     except ClientError as e:
-        logger.info(f"""Auth failed for "{username}": {e.response["Error"]["Message"]}""")
-        return None
+        logger.info(f"""Auth failed for "{login_request.username}": {e.response["Error"]["Message"]}""")
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error durring login: {e}")
-        return None
+        raise e
     
-async def refresh_session(refresh_token: str) -> None | AuthData:
+def refresh_session(refresh_token: str) -> AuthData:
     try:
         u = Cognito(
             user_pool_id=AWS_COGNITO_USER_POOL_ID,
@@ -53,13 +53,13 @@ async def refresh_session(refresh_token: str) -> None | AuthData:
         return AuthData(u.id_token, u.access_token, u.refresh_token)
     except ClientError as e:
         logger.error(f"Failed to refresh session: {e.response['Error']['Message']}")
-        return None
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error during token refresh: {e}")
-        return None
+        raise e
 
 
-async def register(user: CreateUserRequest):
+def register(user: CreateUserRequest):
     try:
         u = Cognito(
             user_pool_id=AWS_COGNITO_USER_POOL_ID, 
@@ -72,18 +72,20 @@ async def register(user: CreateUserRequest):
         logger.info(f"""User "{user.username}" successfully started account registration process.""")
     except ClientError as e:
         logger.error(f'Registration failed for "{user.username}": {e.response["Error"]["Message"]}')
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error during registration: {e}")
+        raise e
 
-async def confirm_registration(email:str, username:str, code:str) -> User | None:
+async def confirm_registration(confirmation:ConfirmRegistrationRequest) -> User:
     try:
         u = Cognito(
             user_pool_id=AWS_COGNITO_USER_POOL_ID, 
             client_id=AWS_COGNITO_CLIENT_ID,
             client_secret=AWS_COGNITO_CLIENT_SECRET,
-            username=username
+            username=confirmation.username
         )
-        u.confirm_sign_up(code, username=username)
+        u.confirm_sign_up(confirmation.code, username=confirmation.username)
         query = """
             INSERT INTO users (email, username)
             VALUES (:email, :username)
@@ -92,22 +94,22 @@ async def confirm_registration(email:str, username:str, code:str) -> User | None
         new_user = await db_connection.fetch_one(
             query=query,
             values={
-                "email": email,
-                "username": username,
+                "email": confirmation.email,
+                "username": confirmation.username,
             },
         )
-        logger.info(f"""User "{username}" successfully confirmed their account creation.""")
+        logger.info(f"""User "{confirmation.username}" successfully confirmed their account creation.""")
         return User(
             id=new_user["id"], username=new_user["username"], email=new_user["email"]
         )
     except ClientError as e:
-        logger.error(f'Confirming registration failed for "{username}": {e.response["Error"]["Message"]}')
-        return None
+        logger.error(f'Confirming registration failed for "{confirmation.username}": {e.response["Error"]["Message"]}')
+        raise e
     except Exception as e:
         logger.exception(f"Unexpected error during registration confirmation: {e}")
-        return None
+        raise e
     
-async def logout(refresh_token: str):
+def logout(access_token: str):
     """
     Revokes the specific refresh token and its associated access tokens.
     """
@@ -119,13 +121,12 @@ async def logout(refresh_token: str):
         )
         
         u.client.revoke_token(
-            Token=refresh_token,
+            Token=access_token,
             ClientId=AWS_COGNITO_CLIENT_ID,
             ClientSecret=AWS_COGNITO_CLIENT_SECRET
         )
         
         logger.info("User successfully logged out of this session.")
-        return True
     except ClientError as e:
         logger.error(f"Logout failed: {e.response['Error']['Message']}")
-        return False
+        raise e
