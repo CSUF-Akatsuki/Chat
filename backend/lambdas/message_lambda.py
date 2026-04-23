@@ -21,14 +21,32 @@ async def ensure_db():
     if not db_connection.is_connected:
         await db_connection.connect()
 
+import jwt
+import os
+
 async def get_current_user_from_event(api_event: APIGatewayProxyEventV2):
     authorizer = api_event.request_context.authorizer
-    if not authorizer or not authorizer.jwt or not authorizer.jwt.claims:
-        raise Exception("Unauthorized: No claims found")
+    username = None
     
-    username = authorizer.jwt.claims.get("username")
+    # 1. Try to get username from API Gateway Cognito Authorizer (Production)
+    if authorizer and getattr(authorizer, "jwt", None) and authorizer.jwt.claims:
+        username = authorizer.jwt.claims.get("username")
+    
+    # 2. Fallback: Parse the Authorization header manually (Local SAM Dev)
+    if not username and os.environ.get("ENVIRONMENT") == "dev":
+        auth_header = api_event.headers.get("authorization") or api_event.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                # Decode unverified just to extract the username for local testing routing.
+                # (In prod, API Gateway blocks invalid tokens before hitting this lambda).
+                claims = jwt.decode(token, options={"verify_signature": False})
+                username = claims.get("username")
+            except Exception as e:
+                logger.error(f"Failed to decode local token: {e}")
+
     if not username:
-        raise Exception("Unauthorized: No username in claims")
+        raise Exception("Unauthorized: No username found in claims or token")
     
     user = await get_user_by_username(username)
     if not user:

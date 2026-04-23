@@ -19,7 +19,9 @@ def main():
     run_command("docker-compose up -d")
     
     print("\n[2/3] Building SAM Application (using container to ensure Linux compatibility)...")
-    run_command("sam build --use-container")
+    # Added --cached to prevent rebuilding dependencies if requirements.txt hasn't changed
+    # Added --parallel to build functions concurrently
+    run_command("sam build --use-container --cached --parallel")
     
     print("\n[3/3] Starting SAM Local API Gateway...")
     print("Press Ctrl+C to stop the API Gateway and exit.")
