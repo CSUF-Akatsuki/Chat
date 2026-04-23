@@ -25,15 +25,18 @@ import jwt
 import os
 
 async def get_current_user_from_event(api_event: APIGatewayProxyEventV2):
-    authorizer = api_event.request_context.authorizer
+    authorizer = api_event.request_context.authorizer if hasattr(api_event.request_context, "authorizer") else None
     username = None
     
     # 1. Try to get username from API Gateway Cognito Authorizer (Production)
-    if authorizer and getattr(authorizer, "jwt", None) and authorizer.jwt.claims:
+    if authorizer and hasattr(authorizer, "jwt") and getattr(authorizer, "jwt", None) and authorizer.jwt.claims:
         username = authorizer.jwt.claims.get("username")
+    elif api_event.request_context.get("authorizer", {}).get("jwt", {}).get("claims"):
+        # Handle dict-based mock events directly
+        username = api_event.request_context.get("authorizer")["jwt"]["claims"].get("username")
     
     # 2. Fallback: Parse the Authorization header manually (Local SAM Dev)
-    if not username and os.environ.get("ENVIRONMENT") == "dev":
+    if not username and os.environ.get("ENVIRONMENT") in ["dev", "test"]:
         auth_header = api_event.headers.get("authorization") or api_event.headers.get("Authorization")
         if auth_header and auth_header.lower().startswith("bearer "):
             token = auth_header.split(" ")[1]
