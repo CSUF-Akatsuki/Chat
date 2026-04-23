@@ -3,6 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   Sarcasm Sync Chat App SAM Template
 
+Parameters:
+  AWS_COGNITO_USER_POOL_ID:
+    Type: String
+    Description: Cognito User Pool ID
+    Default: "us-east-1_XXXXX"
+
 Globals:
   Function:
     Timeout: 30
@@ -24,12 +30,11 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: dev
-      # Note: Local SAM does not fully validate Cognito Authorizers natively.
-      # You can test endpoints locally, but the authorizer won't block requests on local API Gateway
-      # unless you mock it. However, the claims must be passed. 
-      # For local testing, you may need to rely on mocking event injection or testing the handlers directly
-      # if you want to bypass the actual Cognito check, or pass dummy claims.
-      # To test endpoints that expect claims in API Gateway locally, you often use `sam local invoke` with a mocked event.json.
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${AWS_COGNITO_USER_POOL_ID}"
 
   # Auth Lambdas
   RegisterFunction:
@@ -44,6 +49,8 @@ Resources:
             Path: /auth/register
             Method: post
             RestApiId: !Ref ChatApi
+            Auth:
+              Authorizer: NONE
 
   ConfirmRegisterFunction:
     Type: AWS::Serverless::Function
@@ -57,6 +64,8 @@ Resources:
             Path: /auth/confirm
             Method: post
             RestApiId: !Ref ChatApi
+            Auth:
+              Authorizer: NONE
 
   LoginFunction:
     Type: AWS::Serverless::Function
@@ -70,6 +79,8 @@ Resources:
             Path: /auth/login
             Method: post
             RestApiId: !Ref ChatApi
+            Auth:
+              Authorizer: NONE
 
   RefreshFunction:
     Type: AWS::Serverless::Function
@@ -83,6 +94,8 @@ Resources:
             Path: /auth/refresh
             Method: post
             RestApiId: !Ref ChatApi
+            Auth:
+              Authorizer: NONE
 
   LogoutFunction:
     Type: AWS::Serverless::Function
