@@ -5,6 +5,8 @@ import path from "path";
 
 // https://vite.dev/config/
 
+
+//Removed Proxy
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -12,29 +14,6 @@ export default defineConfig({
     port: 5173,
     watch: {
       usePolling: true,
-    },
-    // This is only for local dev hai
-    proxy: {
-      "/auth": {
-        target: "http://nginx:8080",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/friends": {
-        target: "http://nginx:8080",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/messages": {
-        target: "http://nginx:8080",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/ws": {
-        target: "ws://nginx:8080",
-        ws: true,
-        changeOrigin: true,
-      },
     },
   },
   resolve: {

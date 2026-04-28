@@ -1,4 +1,5 @@
-import axios, { AxiosError } from "axios";
+import axios, { type AxiosError } from "axios";
+import apiClient from "./axiosInstance";
 import type { ApiError } from "./fetchFriends";
 import store from "../store/store";
 
@@ -8,7 +9,7 @@ export async function sendFriendRequest(friendId: number) {
     if (!token) {
       throw new Error("Authentication required. Please log in");
     }
-    const response = await axios.post(
+    const response = await apiClient.post(
       "/friends/send_friend_request",
       { id: friendId },
       { headers: { Authorization: `Bearer ${token}` } }
@@ -31,7 +32,7 @@ export async function acceptFriendRequest(friendId: number) {
     if (!token) {
       throw new Error("Authentication required. Please log in");
     }
-    await axios.patch(
+    await apiClient.patch(
       `/friends/accept/${friendId}`,
       {},
       {
@@ -56,7 +57,7 @@ export async function rejectFriendRequest(friendId: number) {
     if (!token) {
       throw new Error("Authentication required. Please log in");
     }
-    await axios.patch(
+    await apiClient.patch(
       `/friends/reject/${friendId}`,
       {},
       {
