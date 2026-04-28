@@ -115,10 +115,6 @@ async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
     if not user:
         raise AuthError("Unauthorized: user not found in DB")
 
-    # Handle schema variance between id and cognito_id
-    if "id" not in user and "cognito_id" in user:
-        user["id"] = user["cognito_id"]
-
     return user
 
 async def ensure_db():

@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
+from uuid import UUID
 
 
 class CreateUserRequest(BaseModel):
@@ -22,7 +23,7 @@ class UserLoginRequest(BaseModel):
     password: str = Field(..., description="password", example="whatever")
 
 class User(BaseModel):
-    id: int
+    cognito_sub: UUID
     username: str = Field(..., description="name of the user", example="mobius505")
     email: EmailStr = Field(
         ..., description="email of the user", example="anuj@gmail.com"

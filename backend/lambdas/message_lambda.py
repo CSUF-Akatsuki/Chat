@@ -13,7 +13,7 @@ def endpoint_get_messages(event: dict, context: LambdaContext):
             other_user_id_str = api_event.path_parameters.get("other_user_id")
             if not other_user_id_str:
                 return _response(400, {"detail": "other_user_id is required"})
-            other_user_id = int(other_user_id_str)
+            other_user_id = other_user_id_str
             
             qs = api_event.query_string_parameters or {}
             limit = int(qs.get("limit", 50))
@@ -21,7 +21,7 @@ def endpoint_get_messages(event: dict, context: LambdaContext):
 
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
-            user_id = current_user["id"]
+            user_id = current_user["cognito_sub"]
             
             query = """
                         SELECT id, sender_id, reciever_id, content, created_at, is_read FROM messages
@@ -56,11 +56,11 @@ def endpoint_delete_conversation(event: dict, context: LambdaContext):
             other_user_id_str = api_event.path_parameters.get("other_user_id")
             if not other_user_id_str:
                 return _response(400, {"detail": "other_user_id is required"})
-            other_user_id = int(other_user_id_str)
+            other_user_id = other_user_id_str
 
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
-            user_id = current_user["id"]
+            user_id = current_user["cognito_sub"]
             
             query = """
                     DELETE FROM messages
@@ -92,7 +92,7 @@ def endpoint_get_conversations(event: dict, context: LambdaContext):
 
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
-            user_id = current_user["id"]
+            user_id = current_user["cognito_sub"]
 
             query = """
                 WITH last_messages AS (
@@ -118,7 +118,7 @@ def endpoint_get_conversations(event: dict, context: LambdaContext):
                     lm.last_message_time,
                     u.username
                 FROM last_messages lm
-                JOIN users u ON u.id = lm.other_user_id
+                JOIN users u ON u.cognito_sub = lm.other_user_id
                 WHERE rn = 1
                 ORDER BY last_message_time DESC
                 LIMIT :limit OFFSET :offset;

@@ -16,15 +16,15 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
             
-            if current_user["id"] == friend_request.id:
+            if current_user["cognito_sub"] == friend_request.cognito_sub:
                 return _response(400, {"detail": "cannot send request to yourself or the current user"})
-                
+
             check_friend_exists = await db_connection.fetch_one(
-                query="SELECT id FROM users WHERE id = :user_id",
-                values={"user_id": friend_request.id},
+                query="SELECT cognito_sub FROM users WHERE cognito_sub = :user_id",
+                values={"user_id": friend_request.cognito_sub},
             )
             if not check_friend_exists:
-                logger.error(f"The user does not exist {friend_request.id}")
+                logger.error(f"The user does not exist {friend_request.cognito_sub}")
                 return _response(404, {"detail": "The user does not exist"})
 
             check_exists_query = """
@@ -34,7 +34,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
                                 """
             exists = await db_connection.fetch_one(
                 query=check_exists_query,
-                values={"user_id": current_user["id"], "friend_id": friend_request.id},
+                values={"user_id": current_user["cognito_sub"], "friend_id": friend_request.cognito_sub},
             )
 
             if exists and exists["status"] not in (None, "none", "rejected"):
@@ -53,7 +53,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
                     """
             db_res = await db_connection.fetch_one(
                 query=query,
-                values={"user_id": current_user["id"], "friend_id": friend_request.id},
+                values={"user_id": current_user["cognito_sub"], "friend_id": friend_request.cognito_sub},
             )
             res_obj = FriendShipResponse(**dict(db_res))
             return _response(200, res_obj.model_dump())
@@ -71,7 +71,7 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
                 return _response(400, {"detail": "friend_id is required"})
-            friend_id = int(friend_id_str)
+            friend_id = friend_id_str
             
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
@@ -86,7 +86,7 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
                     """
             res = await db_connection.fetch_one(
                 query=query,
-                values={"user_id": current_user["id"], "friend_id": friend_id},
+                values={"user_id": current_user["cognito_sub"], "friend_id": friend_id},
             )
             if res:
                 return _response(200, {"success": True, "message": "Friend Request Accepted"})
@@ -106,7 +106,7 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
                 return _response(400, {"detail": "friend_id is required"})
-            friend_id = int(friend_id_str)
+            friend_id = friend_id_str
             
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
@@ -120,7 +120,7 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
                     """
             res = await db_connection.fetch_one(
                 query=query,
-                values={"user_id": current_user["id"], "friend_id": friend_id},
+                values={"user_id": current_user["cognito_sub"], "friend_id": friend_id},
             )
             if res:
                 return _response(200, {"success": True, "message": "Friend Request Rejected"})
@@ -140,7 +140,7 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
                 return _response(400, {"detail": "friend_id is required"})
-            friend_id = int(friend_id_str)
+            friend_id = friend_id_str
             
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
@@ -155,7 +155,7 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
                     """
             response = await db_connection.fetch_one(
                 query=query,
-                values={"user_id": current_user["id"], "friend_id": friend_id},
+                values={"user_id": current_user["cognito_sub"], "friend_id": friend_id},
             )
             if not response:
                 return _response(404, {"detail": "No accepted friendship found to block"})
@@ -177,22 +177,22 @@ def endpoint_get_all_friends(event: dict, context: LambdaContext):
 
             query = """
                         SELECT
-                            u.id,
+                            u.cognito_sub,
                             u.username,
                             f.status as friendship_status,
                             f.created_at as friendship_created_at
-                        FROM friendships f 
+                        FROM friendships f
                         JOIN users u ON (
-                            CASE 
-                                WHEN f.user_id = :user_id THEN u.id = f.friend_id
-                                ELSE u.id = f.user_id
+                            CASE
+                                WHEN f.user_id = :user_id THEN u.cognito_sub = f.friend_id
+                                ELSE u.cognito_sub = f.user_id
                             END
                         )
-                        WHERE (f.user_id = :user_id OR f.friend_id = :user_id) 
+                        WHERE (f.user_id = :user_id OR f.friend_id = :user_id)
                         AND f.status = 'accepted'
                     """
             friends = await db_connection.fetch_all(
-                query=query, values={"user_id": current_user["id"]}
+                query=query, values={"user_id": current_user["cognito_sub"]}
             )
             
             res_list = [FriendsProfile(**dict(friend)).model_dump() for friend in friends]
@@ -211,7 +211,7 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
                 return _response(400, {"detail": "friend_id is required"})
-            friend_id = int(friend_id_str)
+            friend_id = friend_id_str
             
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
@@ -224,7 +224,7 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
                         RETURNING id
                     """
             response = await db_connection.fetch_one(
-                query=query, values={"user_id": current_user["id"], "friend_id": friend_id}
+                query=query, values={"user_id": current_user["cognito_sub"], "friend_id": friend_id}
             )
             if not response:
                 return _response(400, {"detail": "Error in removing friend"})
@@ -245,17 +245,17 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
             current_user = await get_database_user_from_event(api_event)
 
             query = """
-                        SELECT id, username, 'none' as friendship_status, NOW() as friendship_created_at 
+                        SELECT cognito_sub, username, 'none' as friendship_status, NOW() as friendship_created_at
                         FROM users
-                        WHERE id != :user_id
-                        AND id NOT IN (
+                        WHERE cognito_sub != :user_id
+                        AND cognito_sub NOT IN (
                             SELECT friend_id FROM friendships WHERE user_id = :user_id
                             UNION
                             SELECT user_id FROM friendships WHERE friend_id = :user_id
                         )
                     """
             people = await db_connection.fetch_all(
-                query=query, values={"user_id": current_user["id"]}
+                query=query, values={"user_id": current_user["cognito_sub"]}
             )
             
             res_list = [FriendsProfile(**dict(person)).model_dump() for person in people]
@@ -275,19 +275,19 @@ def endpoint_all_friend_requests(event: dict, context: LambdaContext):
             current_user = await get_database_user_from_event(api_event)
 
             query = """
-                        SELECT 
-                            u.id,
+                        SELECT
+                            u.cognito_sub,
                             u.username,
                             f.status as friendship_status,
                             f.created_at as friendship_created_at
                         FROM friendships f
-                        JOIN users u ON u.id = f.user_id
+                        JOIN users u ON u.cognito_sub = f.user_id
                         WHERE f.friend_id = :user_id
                         AND f.status = 'pending'
                         ORDER BY f.created_at DESC
                    """
             friend_requests = await db_connection.fetch_all(
-                query=query, values={"user_id": current_user["id"]}
+                query=query, values={"user_id": current_user["cognito_sub"]}
             )
             
             res_list = [FriendsProfile(**dict(req)).model_dump() for req in friend_requests]
