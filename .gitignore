@@ -1,4 +1,11 @@
 *.pyc
+__pycache__/
 /.venv/
+**/venv/
 *.lock
 /.aws-sam/
+
+# Local config and secrets (use env.json.example as template)
+env.json
+.env
+.env.local
