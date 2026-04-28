@@ -2,15 +2,13 @@ import asyncio
 import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from lambdas.lib import ensure_db, get_database_user_from_event, get_or_create_event_loop
+from lambdas.lib import ensure_db, get_database_user_from_event
 from shared.db.database import db_connection
 from shared.logger import logger
 from models.friends import FriendShipResponse, FriendRequest, FriendsProfile
 
 
 def endpoint_send_friend_request(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -65,11 +63,9 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             logger.error(f"Failed to send a friend request {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -102,11 +98,9 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
             logger.error(f"Failed to accept the friend request {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_reject_friend_request(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -138,11 +132,9 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
             logger.error(f"Failed to reject the friend request {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_block_friend(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -175,11 +167,9 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
             logger.error(f"Error Blocking friend {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_get_all_friends(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -213,11 +203,9 @@ def endpoint_get_all_friends(event: dict, context: LambdaContext):
             logger.error(f"Error fetching friends {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_remove_friend(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -248,11 +236,9 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
             logger.error(f"Error Deleting friend {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_people_you_may_know(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -280,11 +266,9 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
             logger.error(f"Something went wrong in fetching people you may know{e}")
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_all_friend_requests(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -314,4 +298,4 @@ def endpoint_all_friend_requests(event: dict, context: LambdaContext):
             logger.error(f"Error fetching friend requests {e}", exc_info=True)
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())

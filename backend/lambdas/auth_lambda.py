@@ -4,17 +4,6 @@ from shared.auth import login, register, refresh_session, confirm_registration, 
 from models.users_model import ConfirmRegistrationRequest, CreateUserRequest, Token, UserLoginRequest
 import asyncio
 
-def get_or_create_event_loop():
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError("Loop is closed")
-        return loop
-    except (RuntimeError, ValueError):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
-
 def endpoint_register(event:dict, context:LambdaContext):
     try:
         api_event = APIGatewayProxyEventV2(event)
@@ -30,8 +19,7 @@ def endpoint_confirm_register(event:dict, context:LambdaContext):
         api_event = APIGatewayProxyEventV2(event)
         confirmation = ConfirmRegistrationRequest.model_validate_json(api_event.body)
 
-        loop = get_or_create_event_loop()
-        user = loop.run_until_complete(confirm_registration(confirmation))
+        user = asyncio.run(confirm_registration(confirmation))
         
         return {"statusCode": 200, "body": user.model_dump_json()}
         

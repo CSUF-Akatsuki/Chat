@@ -2,14 +2,12 @@ import asyncio
 import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from lambdas.lib import ensure_db, get_database_user_from_event, get_or_create_event_loop
+from lambdas.lib import ensure_db, get_database_user_from_event
 from shared.db.database import db_connection
 from shared.logger import logger
 from models.messages import Message_Response
 
 def endpoint_get_messages(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -50,11 +48,9 @@ def endpoint_get_messages(event: dict, context: LambdaContext):
             logger.error(f"Error while retrieving messages or conv {e}")
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_delete_conversation(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -88,11 +84,9 @@ def endpoint_delete_conversation(event: dict, context: LambdaContext):
             logger.error(f"Error while deleting conversation: {e}")
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())
 
 def endpoint_get_conversations(event: dict, context: LambdaContext):
-    loop = get_or_create_event_loop()
-    
     async def _process():
         try:
             api_event = APIGatewayProxyEventV2(event)
@@ -159,4 +153,4 @@ def endpoint_get_conversations(event: dict, context: LambdaContext):
             logger.error(f"Error retrieving conversations: {e}")
             return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
             
-    return loop.run_until_complete(_process())
+    return asyncio.run(_process())

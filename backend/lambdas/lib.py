@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from typing import Dict, Any, Optional, List
@@ -63,17 +62,6 @@ async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
         user["id"] = user["cognito_id"]
         
     return user
-
-def get_or_create_event_loop():
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError("Loop is closed")
-        return loop
-    except (RuntimeError, ValueError):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
 
 async def ensure_db():
     if not db_connection.is_connected:
