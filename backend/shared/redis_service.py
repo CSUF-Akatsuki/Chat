@@ -18,14 +18,12 @@ class RedisServer:
 
     async def connect(self, auto_reconnect: bool = True):
         try:
-            self.pool = redis.ConnectionPool(
-                host=settings.redis_host,
-                port=settings.redis_port,
-                db=settings.redis_db,
-                # password = REDIS_PASSWORD
+            self.pool = redis.ConnectionPool.from_url(
+                f"rediss://:{settings.redis_password}@{settings.redis_host}:{settings.redis_port}/0",
                 max_connections=50,
                 socket_timeout=None,  # No timeout for pubsub connections
                 socket_connect_timeout=5,
+                ssl_cert_reqs=None,
             )
             self.redis_client = redis.Redis(
                 connection_pool=self.pool,

@@ -42,12 +42,14 @@ class Settings(BaseSettings):
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            f"?ssl=require"
         )
 
     # redis
     redis_host: str = Field(default="redis", description="redis host")
     redis_port: int = Field(default=6379, description="redis port")
     redis_db: int = Field(default=1, description="redis db name")
+    redis_password: str = Field(default="", description="redis password")
 
 
 settings = Settings()

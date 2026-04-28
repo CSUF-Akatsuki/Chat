@@ -1,0 +1,253 @@
+VPC Layout
+
+  VPC CIDR: 10.0.0.0/16
+
+  Use 2 Availability Zones (required by ALB, and good practice for RDS Multi-AZ):
+
+  ┌──────────────────┬────────────┬─────────────┬──────────────────────────────────┐
+  │      Subnet      │     AZ     │    CIDR     │             Contains             │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ Public Subnet A  │ us-east-1a │ 10.0.1.0/24 │ ALB, Internet Gateway attachment │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ Public Subnet B  │ us-east-1b │ 10.0.2.0/24 │ ALB (second AZ), NAT Gateway     │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ Private Subnet A │ us-east-1a │ 10.0.3.0/24 │ ECS Fargate tasks                │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ Private Subnet B │ us-east-1b │ 10.0.4.0/24 │ ECS Fargate tasks                │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ DB Subnet A      │ us-east-1a │ 10.0.5.0/24 │ RDS PostgreSQL                   │
+  ├──────────────────┼────────────┼─────────────┼──────────────────────────────────┤
+  │ DB Subnet B      │ us-east-1b │ 10.0.6.0/24 │ ElastiCache Redis                │
+  └──────────────────┴────────────┴─────────────┴──────────────────────────────────┘
+
+  NAT Gateway lives in a public subnet but serves the private subnets — a common point of confusion when drawing.
+
+  ---
+  Full Architecture — Text Reference
+
+  Internet
+      │
+      ▼
+  ┌─────────────────────────────────────────────────┐
+  │              AWS Cloud (Global)                 │
+  │                                                 │
+  │  CloudFront Distribution                        │
+  │    ├── Origin 1: S3 Bucket  (/*  static assets) │
+  │    └── Origin 2: ALB  (/auth/*, /friends/*,     │
+  │                         /messages/*, /ws)        │
+  │                                                 │
+  │  S3 Bucket (frontend /dist build)               │
+  │  ECR (Docker image registry)                    │
+  │  Secrets Manager (DB creds, JWT secret)         │
+  │  CloudWatch (logs, metrics, alarms)             │X
+  │  Cognito (Phase 4 — auth)                       │
+  └─────────────────────────────────────────────────┘
+      │ (ALB origin traffic)
+      ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │  VPC  10.0.0.0/16                                               │
+  │                                                                 │
+  │  ┌──────────────────────────────────────────────────────────┐   │
+  │  │  PUBLIC SUBNETS                                          │   │
+  │  │                                                          │   │
+  │  │  ┌─────────────────────┐   ┌──────────────────────────┐ │   │
+  │  │  │  Public Subnet A    │   │  Public Subnet B         │ │   │
+  │  │  │  10.0.1.0/24 (1a)  │   │  10.0.2.0/24 (1b)       │ │   │
+  │  │  │                     │   │                          │ │   │
+  │  │  │  [ALB node]         │   │  [ALB node]              │ │   │
+  │  │  │                     │   │  [NAT Gateway] ──────────┼─┼──▶ Internet
+  │  │  └─────────────────────┘   └──────────────────────────┘ │   │
+  │  │           │                                              │   │
+  │  │    Internet Gateway                                      │   │
+  │  └──────────────────────────────────────────────────────────┘   │
+  │           │ (ALB routes to ECS target group)                     │
+  │  ┌──────────────────────────────────────────────────────────┐   │
+  │  │  PRIVATE SUBNETS (App Tier)                              │   │
+  │  │                                                          │   │
+  │  │  ┌─────────────────────┐   ┌──────────────────────────┐ │   │
+  │  │  │  Private Subnet A   │   │  Private Subnet B        │ │   │
+  │  │  │  10.0.3.0/24 (1a)  │   │  10.0.4.0/24 (1b)       │ │   │  
+  │  │  │                     │   │                          │ │   │
+  │  │  │  [ECS Fargate Task] │   │  [ECS Fargate Task]     │ │   │
+  │  │  │  [ECS Fargate Task] │   │                          │ │   │
+  │  │  └─────────────────────┘   └──────────────────────────┘ │   │
+  │  │           │ (outbound via NAT GW)  │ (to DB tier)        │   │
+  │  └──────────────────────────────────────────────────────────┘   │
+  │           │                                                      │
+  │  ┌──────────────────────────────────────────────────────────┐   │
+  │  │  PRIVATE SUBNETS (DB Tier)                               │   │
+  │  │                                                          │   │
+  │  │  ┌─────────────────────┐   ┌──────────────────────────┐ │   │
+  │  │  │  DB Subnet A        │   │  DB Subnet B             │ │   │
+  │  │  │  10.0.5.0/24 (1a)  │   │  10.0.6.0/24 (1b)       │ │   │
+  │  │  │                     │   │                          │ │   │
+  │  │  │  [RDS PostgreSQL]   │   │  [RDS standby/replica]  │ │   │
+  │  │  │  [ElastiCache Redis]│   │  [ElastiCache replica]  │ │   │
+  │  │  └─────────────────────┘   └──────────────────────────┘ │   │
+  │  └──────────────────────────────────────────────────────────┘   │
+  └─────────────────────────────────────────────────────────────────┘
+
+  ---
+  Traffic Flows to Show with Arrows
+
+  ┌─────────────────────────┬────────────────────────────────────────────────────┐
+  │          Flow           │                        Path                        │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ User loads page         │ Internet → CloudFront → S3                         │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ User makes API call     │ Internet → CloudFront → ALB → ECS (private subnet) │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ User opens WebSocket    │ Internet → CloudFront → ALB → ECS (private subnet) │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ Backend reads/writes DB │ ECS → RDS (DB subnet, same VPC)                    │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ Backend pub/sub         │ ECS → ElastiCache (DB subnet, same VPC)            │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ Container pulls image   │ ECS → NAT Gateway → Internet → ECR                 │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ Backend reads secrets   │ ECS → NAT Gateway → Secrets Manager                │
+  ├─────────────────────────┼────────────────────────────────────────────────────┤
+  │ Backend writes logs     │ ECS → NAT Gateway → CloudWatch                     │
+  └─────────────────────────┴────────────────────────────────────────────────────┘
+
+  ---
+  Security Groups to Show (Labeled Boundaries)
+
+  Draw these as colored borders around resource groups:
+
+  ┌────────────────┬───────────────────────────┐
+  │ Security Group │    Allows Inbound From    │
+  ├────────────────┼───────────────────────────┤
+  │ sg-alb         │ 0.0.0.0/0 on 443 (HTTPS)  │
+  ├────────────────┼───────────────────────────┤
+  │ sg-ecs         │ sg-alb only, on port 8000 │
+  ├────────────────┼───────────────────────────┤
+  │ sg-rds         │ sg-ecs only, on port 5432 │
+  ├────────────────┼───────────────────────────┤
+  │ sg-redis       │ sg-ecs only, on port 6379 │
+  └────────────────┴───────────────────────────┘
+
+  ┌─────────────┬────────────────────┬─────────────────┬──────┬──────────┬───────────────────────┐
+  │  Security   │    Attached To     │  Inbound From   │ Port │ Protocol │       Outbound        │
+  │    Group    │                    │                 │      │          │                       │
+  ├─────────────┼────────────────────┼─────────────────┼──────┼──────────┼───────────────────────┤
+  │ sg-alb      │ Application Load   │ 0.0.0.0/0       │ 443  │ HTTPS    │ To sg-ecs on 8000     │
+  │             │ Balancer           │ (anywhere)      │      │          │                       │
+  ├─────────────┼────────────────────┼─────────────────┼──────┼──────────┼───────────────────────┤
+  │ sg-ecs      │ ECS Fargate Tasks  │ sg-alb only     │ 8000 │ HTTP     │ To sg-rds, sg-redis,  │
+  │             │                    │                 │      │          │ NAT Gateway           │
+  ├─────────────┼────────────────────┼─────────────────┼──────┼──────────┼───────────────────────┤
+  │ sg-rds      │ RDS PostgreSQL     │ sg-ecs only     │ 5432 │ TCP      │ None                  │
+  ├─────────────┼────────────────────┼─────────────────┼──────┼──────────┼───────────────────────┤
+  │ sg-redis    │ ElastiCache Redis  │ sg-ecs only     │ 6379 │ TCP      │ None                  │
+  └─────────────┴────────────────────┴─────────────────┴──────┴──────────┴───────────────────────┘
+
+  ---
+  draw.io Setup Tips
+
+  1. Open https://diagrams.net → Extras → Edit Diagram to paste XML, or use the drag-and-drop AWS shape library
+  2. Enable AWS shapes: View → Shapes → AWS (search "AWS19" for the current icon set)
+  3. Use swimlane containers for VPC, then nested containers for each subnet
+  4. Color convention: blue = public, orange/yellow = private app tier, red = private DB tier — matches AWS documentation style
+
+
+
+  Internet
+      │
+      ▼
+  ┌───────────────────────────────────────────────────────────┐
+  │  AWS Cloud (Global)                                       │
+  │                                                           │
+  │  CloudFront Distribution                                  │
+  │    ├── Origin 1: S3 Bucket  (/* static assets)            │
+  │    └── Origin 2: ALB  (/auth/*, /friends/*,               │
+  │                         /messages/*, /ws)                 │
+  │  S3 Bucket (frontend /dist build)                         │
+  │                                                           │
+  │  ┌─────────────────────────────────────────────────────┐  │
+  │  │  Region us-west-1                                   │  │ 
+  │  │                                                     │  │
+  │  │  ECR (Docker image registry)                        │  │ 
+  │  │  Secrets Manager (DB creds, JWT secret)             │  │
+  │  │  CloudWatch (logs, metrics, alarms)                 │  │
+  │  │                                                     │  │
+  │  │  ┌────────────────────────────────────────────────┐ │  │
+  │  │  │  VPC 10.0.0.0/16                               │ │  │
+  │  │  │            ┌─────────────────────┐             │ │  │
+  │  │  │    ════════╡  Internet Gateway   ╞═══          │ │  │
+  │  │  │            └─────────────────────┘             │ │  │
+  │  │  │          (single ALB spans both AZs)           │ │  │
+  │  │  │          ┌───────────────────────────┐         │ │  │
+  │  │  │          │  Application Load Balancer│         │ │  │
+  │  │  │          └───────────────────────────┘         │ │  │
+  │  │  │                                                │ │  │
+  │  │  │  ┌─── AZ-A (us-west-1a) ───┐  ┌─── AZ-B ────┐  │ │  │
+  │  │  │  │                         │  │  (empty)    │  │ │  │
+  │  │  │  │  Public Subnet A        │  │  Public     │  │ │  │
+  │  │  │  │  10.0.1.0/24            │  │  Subnet B   │  │ │  │
+  │  │  │  │  [NAT Gateway]          │  │  10.0.2.0/24│  │ │  │
+  │  │  │  │                         │  │             │  │ │  │
+  │  │  │  │  Private Subnet A       │  │  Private    │  │ │  │
+  │  │  │  │  (App Tier)             │  │  Subnet B   │  │ │  │
+  │  │  │  │  10.0.3.0/24            │  │  (App Tier) │  │ │  │
+  │  │  │  │  [ECS Task]             │  │  10.0.4.0/24│  │ │  │
+  │  │  │  │  [ECS Task]             │  │  (empty)    │  │ │  │
+  │  │  │  │  [ECS Task]             │  │             │  │ │  │
+  │  │  │  │                         │  │  Private    │  │ │  │
+  │  │  │  │  Private Subnet A       │  │  Subnet B   │  │ │  │
+  │  │  │  │  (DB Tier)              │  │  (DB Tier)  │  │ │  │
+  │  │  │  │  10.0.5.0/24            │  │  10.0.6.0/24│  │ │  │
+  │  │  │  │  [RDS PostgreSQL]       │  │  (empty)    │  │ │  │
+  │  │  │  │  [ElastiCache Redis]    │  │             │  │ │  │
+  │  │  │  └─────────────────────────┘  └─────────────┘  │ │  │
+  │  │  └────────────────────────────────────────────────┘ │  │
+  │  └─────────────────────────────────────────────────────┘  │
+  └───────────────────────────────────────────────────────────┘
+
+  ---
+  Traffic Flows
+
+  ┌───────────────────────────┬───────────────────────────────────────────────┐
+  │           Flow            │                     Path                      │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ User loads page           │ Internet → CloudFront → S3                    │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ User API call / WebSocket │ Internet → CloudFront → IGW → ALB → ECS Tasks │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS response to client    │ ECS Tasks → ALB → CloudFront → Client         │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS reads/writes DB       │ ECS → RDS (direct, same VPC)                  │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS pub/sub               │ ECS → ElastiCache (direct, same VPC)          │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS pulls image           │ ECS → NAT GW → IGW → ECR                      │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS reads secrets         │ ECS → NAT GW → IGW → Secrets Manager          │
+  ├───────────────────────────┼───────────────────────────────────────────────┤
+  │ ECS writes logs           │ ECS → NAT GW → IGW → CloudWatch               │
+  └───────────────────────────┴───────────────────────────────────────────────┘
+
+  ---
+  Key Corrections From Original
+
+  ┌───────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────┐
+  │                 Was Wrong                 │                             Now Correct                             │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Region was us-east-1                      │ us-west-1                                                           │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ NAT Gateway in AZ-B                       │ NAT Gateway in AZ-A                                                 │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ "ALB nodes" in each subnet                │ Single ALB resource spanning both AZs                               │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ AZ-B had resources                        │ AZ-B is empty — exists only for ALB + RDS subnet group requirements │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ RDS standby + ElastiCache replica in AZ-B │ Removed — single AZ focus                                           │
+  ├───────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ ECR listed as global                      │ ECR is regional — inside Region, outside VPC                        │
+
+
+  Explain the Subnet Build out, specifically, for each CIDR block, what is being given and divided out and the logic behind it. 
+  I need help identifying ports for each of the diagrams arrows
+  For auto scaling groups in ECS, how is the load balancer or CloudFront reverse proxy updated about new groups
+  Are containers or images givento the ECR?
+  How are containers networked? is it left to the child program to handle networking details? 
