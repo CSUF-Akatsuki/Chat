@@ -2,64 +2,12 @@ import asyncio
 import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from shared.db.database import db_connection, get_user_by_username
+from backend.lambdas.auth_lambda import get_or_create_event_loop
+from backend.lambdas.lib import ensure_db, get_database_user_from_event
+from shared.db.database import db_connection
 from shared.logger import logger
 from models.friends import FriendShipResponse, FriendRequest, FriendsProfile
 
-def get_or_create_event_loop():
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError("Loop is closed")
-        return loop
-    except (RuntimeError, ValueError):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
-
-async def ensure_db():
-    if not db_connection.is_connected:
-        await db_connection.connect()
-
-import jwt
-import os
-
-async def get_current_user_from_event(api_event: APIGatewayProxyEventV2):
-    authorizer = api_event.request_context.authorizer if hasattr(api_event.request_context, "authorizer") else None
-    username = None
-    
-    # 1. Try to get username from API Gateway Cognito Authorizer (Production)
-    if authorizer and hasattr(authorizer, "jwt") and getattr(authorizer, "jwt", None) and authorizer.jwt.claims:
-        username = authorizer.jwt.claims.get("username")
-    elif api_event.request_context.get("authorizer", {}).get("jwt", {}).get("claims"):
-        # Handle dict-based mock events directly
-        username = api_event.request_context.get("authorizer")["jwt"]["claims"].get("username")
-    
-    # 2. Fallback: Parse the Authorization header manually (Local SAM Dev)
-    if not username and os.environ.get("ENVIRONMENT") in ["dev", "test"]:
-        auth_header = api_event.headers.get("authorization") or api_event.headers.get("Authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header.split(" ")[1]
-            try:
-                # Decode unverified just to extract the username for local testing routing.
-                # (In prod, API Gateway blocks invalid tokens before hitting this lambda).
-                claims = jwt.decode(token, options={"verify_signature": False})
-                username = claims.get("username")
-            except Exception as e:
-                logger.error(f"Failed to decode local token: {e}")
-
-    if not username:
-        raise Exception("Unauthorized: No username found in claims or token")
-    
-    user = await get_user_by_username(username)
-    if not user:
-        raise Exception("Unauthorized: User not found in DB")
-    
-    # Handle schema variance between id and cognito_id
-    if "id" not in user and "cognito_id" in user:
-        user["id"] = user["cognito_id"]
-        
-    return user
 
 def endpoint_send_friend_request(event: dict, context: LambdaContext):
     loop = get_or_create_event_loop()
@@ -70,7 +18,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             friend_request = FriendRequest.model_validate_json(api_event.body)
             
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
             
             if current_user["id"] == friend_request.id:
                 return {"statusCode": 400, "body": json.dumps({"detail": "cannot send request to yourself or the current user"})}
@@ -132,7 +80,7 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
             friend_id = int(friend_id_str)
             
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                     UPDATE friendships 
@@ -169,7 +117,7 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
             friend_id = int(friend_id_str)
             
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                    DELETE FROM friendships 
@@ -205,7 +153,7 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
             friend_id = int(friend_id_str)
             
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                         UPDATE friendships
@@ -237,7 +185,7 @@ def endpoint_get_all_friends(event: dict, context: LambdaContext):
         try:
             api_event = APIGatewayProxyEventV2(event)
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                         SELECT
@@ -280,7 +228,7 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
             friend_id = int(friend_id_str)
             
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                         DELETE FROM friendships
@@ -310,7 +258,7 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
         try:
             api_event = APIGatewayProxyEventV2(event)
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                         SELECT id, username, 'none' as friendship_status, NOW() as friendship_created_at 
@@ -342,7 +290,7 @@ def endpoint_all_friend_requests(event: dict, context: LambdaContext):
         try:
             api_event = APIGatewayProxyEventV2(event)
             await ensure_db()
-            current_user = await get_current_user_from_event(api_event)
+            current_user = await get_database_user_from_event(api_event)
 
             query = """
                         SELECT 
