@@ -2,6 +2,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
 from shared.auth import login, register, refresh_session, confirm_registration, logout
 from models.users_model import ConfirmRegistrationRequest, CreateUserRequest, Token, UserLoginRequest
+from lambdas.lib import _response
 import asyncio
 
 def endpoint_register(event:dict, context:LambdaContext):
@@ -9,10 +10,10 @@ def endpoint_register(event:dict, context:LambdaContext):
         api_event = APIGatewayProxyEventV2(event)
         user = CreateUserRequest.model_validate_json(api_event.body)
         register(user)
-        return {"statusCode": 200, "body": "Success"}
+        return _response(200, {"message": "Success"})
         
     except Exception as e:
-        return {"statusCode": 400, "body": str(e)}
+        return _response(400, {"detail": str(e)})
     
 def endpoint_confirm_register(event:dict, context:LambdaContext):
     try:
@@ -21,10 +22,10 @@ def endpoint_confirm_register(event:dict, context:LambdaContext):
 
         user = asyncio.run(confirm_registration(confirmation))
         
-        return {"statusCode": 200, "body": user.model_dump_json()}
+        return _response(200, user.model_dump())
         
     except Exception as e:
-        return {"statusCode": 400, "body": str(e)}
+        return _response(400, {"detail": str(e)})
     
 def endpoint_login(event:dict, context:LambdaContext):
     try:
@@ -33,10 +34,10 @@ def endpoint_login(event:dict, context:LambdaContext):
         
         auth_data = login(login_request)
         
-        return {"statusCode": 200, "body": Token(access_token=str(auth_data.access_token), token_type="bearer").model_dump_json()}
+        return _response(200, Token(access_token=str(auth_data.access_token), token_type="bearer").model_dump())
         
     except Exception as e:
-        return {"statusCode": 400, "body": str(e)}
+        return _response(400, {"detail": str(e)})
     
 def endpoint_refresh(event:dict, context:LambdaContext):
     try:
@@ -53,9 +54,9 @@ def endpoint_refresh(event:dict, context:LambdaContext):
 
         auth_data = refresh_session(refresh_token)
         
-        return {"statusCode": 200, "body": Token(str(auth_data.access_token), token_type="bearer").model_dump_json()}
+        return _response(200, Token(access_token=str(auth_data.access_token), token_type="bearer").model_dump())
     except Exception as e:
-        return {"statusCode": 400, "body": str(e)}
+        return _response(400, {"detail": str(e)})
     
 def endpoint_logout(event:dict, context:LambdaContext):
     try:
@@ -68,11 +69,7 @@ def endpoint_logout(event:dict, context:LambdaContext):
         jwt_token = auth_header.split(" ")[1]
         logout(jwt_token)
         delete_cookie = "refresh_token=deleted; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict"
-        return {
-            "statusCode": 200,
-            "cookies": [ delete_cookie ],
-            "body": "Success"
-        }
+        return _response(200, {"message": "Success"}, cookies=[delete_cookie])
         
     except Exception as e:
-        return {"statusCode": 400, "body": str(e)}
+        return _response(400, {"detail": str(e)})

@@ -1,8 +1,7 @@
 import asyncio
-import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from lambdas.lib import ensure_db, get_database_user_from_event
+from lambdas.lib import ensure_db, get_database_user_from_event, _response
 from shared.db.database import db_connection
 from shared.logger import logger
 from models.friends import FriendShipResponse, FriendRequest, FriendsProfile
@@ -18,7 +17,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             current_user = await get_database_user_from_event(api_event)
             
             if current_user["id"] == friend_request.id:
-                return {"statusCode": 400, "body": json.dumps({"detail": "cannot send request to yourself or the current user"})}
+                return _response(400, {"detail": "cannot send request to yourself or the current user"})
                 
             check_friend_exists = await db_connection.fetch_one(
                 query="SELECT id FROM users WHERE id = :user_id",
@@ -26,7 +25,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             )
             if not check_friend_exists:
                 logger.error(f"The user does not exist {friend_request.id}")
-                return {"statusCode": 404, "body": json.dumps({"detail": "The user does not exist"})}
+                return _response(404, {"detail": "The user does not exist"})
 
             check_exists_query = """
                                     SELECT * FROM friendships
@@ -39,7 +38,7 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
             )
 
             if exists and exists["status"] not in (None, "none", "rejected"):
-                return {"statusCode": 400, "body": json.dumps({"detail": f"Friend request already exists with status: {exists['status']}"})}
+                return _response(400, {"detail": f"Friend request already exists with status: {exists['status']}"})
 
             if exists and exists["status"] in (None, "none", "rejected"):
                 await db_connection.execute(
@@ -57,11 +56,11 @@ def endpoint_send_friend_request(event: dict, context: LambdaContext):
                 values={"user_id": current_user["id"], "friend_id": friend_request.id},
             )
             res_obj = FriendShipResponse(**dict(db_res))
-            return {"statusCode": 200, "body": res_obj.model_dump_json()}
+            return _response(200, res_obj.model_dump())
 
         except Exception as e:
             logger.error(f"Failed to send a friend request {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -71,7 +70,7 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "friend_id is required"})}
+                return _response(400, {"detail": "friend_id is required"})
             friend_id = int(friend_id_str)
             
             await ensure_db()
@@ -90,13 +89,13 @@ def endpoint_accept_friendrequest(event: dict, context: LambdaContext):
                 values={"user_id": current_user["id"], "friend_id": friend_id},
             )
             if res:
-                return {"statusCode": 200, "body": json.dumps({"success": True, "message": "Friend Request Accepted"})}
+                return _response(200, {"success": True, "message": "Friend Request Accepted"})
             else:
-                return {"statusCode": 404, "body": json.dumps({"detail": "Friend request not found"})}
+                return _response(404, {"detail": "Friend request not found"})
                 
         except Exception as e:
             logger.error(f"Failed to accept the friend request {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -106,7 +105,7 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "friend_id is required"})}
+                return _response(400, {"detail": "friend_id is required"})
             friend_id = int(friend_id_str)
             
             await ensure_db()
@@ -124,13 +123,13 @@ def endpoint_reject_friend_request(event: dict, context: LambdaContext):
                 values={"user_id": current_user["id"], "friend_id": friend_id},
             )
             if res:
-                return {"statusCode": 200, "body": json.dumps({"success": True, "message": "Friend Request Rejected"})}
+                return _response(200, {"success": True, "message": "Friend Request Rejected"})
             else:
-                return {"statusCode": 404, "body": json.dumps({"detail": "Friend request not found"})}
+                return _response(404, {"detail": "Friend request not found"})
                 
         except Exception as e:
             logger.error(f"Failed to reject the friend request {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -140,7 +139,7 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "friend_id is required"})}
+                return _response(400, {"detail": "friend_id is required"})
             friend_id = int(friend_id_str)
             
             await ensure_db()
@@ -159,13 +158,13 @@ def endpoint_block_friend(event: dict, context: LambdaContext):
                 values={"user_id": current_user["id"], "friend_id": friend_id},
             )
             if not response:
-                return {"statusCode": 404, "body": json.dumps({"detail": "No accepted friendship found to block"})}
+                return _response(404, {"detail": "No accepted friendship found to block"})
             else:
-                return {"statusCode": 200, "body": json.dumps({"success": True, "message": "sucessfully blocked"})}
+                return _response(200, {"success": True, "message": "sucessfully blocked"})
                 
         except Exception as e:
             logger.error(f"Error Blocking friend {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -197,11 +196,11 @@ def endpoint_get_all_friends(event: dict, context: LambdaContext):
             )
             
             res_list = [FriendsProfile(**dict(friend)).model_dump() for friend in friends]
-            return {"statusCode": 200, "body": json.dumps(res_list, default=str)}
+            return _response(200, res_list)
 
         except Exception as e:
             logger.error(f"Error fetching friends {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -211,7 +210,7 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             friend_id_str = api_event.path_parameters.get("friend_id")
             if not friend_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "friend_id is required"})}
+                return _response(400, {"detail": "friend_id is required"})
             friend_id = int(friend_id_str)
             
             await ensure_db()
@@ -228,13 +227,13 @@ def endpoint_remove_friend(event: dict, context: LambdaContext):
                 query=query, values={"user_id": current_user["id"], "friend_id": friend_id}
             )
             if not response:
-                return {"statusCode": 400, "body": json.dumps({"detail": "Error in removing friend"})}
+                return _response(400, {"detail": "Error in removing friend"})
             else:
-                return {"statusCode": 200, "body": json.dumps({"success": True, "message": "Friend Removed"})}
+                return _response(200, {"success": True, "message": "Friend Removed"})
 
         except Exception as e:
             logger.error(f"Error Deleting friend {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -260,11 +259,11 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
             )
             
             res_list = [FriendsProfile(**dict(person)).model_dump() for person in people]
-            return {"statusCode": 200, "body": json.dumps(res_list, default=str)}
+            return _response(200, res_list)
 
         except Exception as e:
             logger.error(f"Something went wrong in fetching people you may know{e}")
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -292,10 +291,10 @@ def endpoint_all_friend_requests(event: dict, context: LambdaContext):
             )
             
             res_list = [FriendsProfile(**dict(req)).model_dump() for req in friend_requests]
-            return {"statusCode": 200, "body": json.dumps(res_list, default=str)}
+            return _response(200, res_list)
             
         except Exception as e:
             logger.error(f"Error fetching friend requests {e}", exc_info=True)
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())

@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
@@ -7,6 +8,35 @@ from shared.db.database import db_connection, get_user_by_username
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def _response(status_code: int, body: Any = None, **extra) -> Dict[str, Any]:
+    """Build an API Gateway HTTP API v2 response with CORS headers.
+
+    body: dict/list -> json.dumps; str -> passed through (assumed pre-encoded);
+    None -> empty body. extra fields (e.g. cookies) merged into the envelope.
+    CORS origin reads from CORS_ALLOWED_ORIGIN env var (set by Terraform to the
+    CloudFront URL in production); defaults to '*' for local invocation.
+    """
+    if body is None:
+        body_str = ""
+    elif isinstance(body, str):
+        body_str = body
+    else:
+        body_str = json.dumps(body, default=str)
+
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": os.environ.get("CORS_ALLOWED_ORIGIN", "*"),
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization",
+        },
+        "body": body_str,
+        **extra,
+    }
 
 @dataclass
 class CognitoUser:

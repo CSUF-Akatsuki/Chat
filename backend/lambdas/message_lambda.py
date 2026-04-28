@@ -1,8 +1,7 @@
 import asyncio
-import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from lambdas.lib import ensure_db, get_database_user_from_event
+from lambdas.lib import ensure_db, get_database_user_from_event, _response
 from shared.db.database import db_connection
 from shared.logger import logger
 from models.messages import Message_Response
@@ -13,7 +12,7 @@ def endpoint_get_messages(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             other_user_id_str = api_event.path_parameters.get("other_user_id")
             if not other_user_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "other_user_id is required"})}
+                return _response(400, {"detail": "other_user_id is required"})
             other_user_id = int(other_user_id_str)
             
             qs = api_event.query_string_parameters or {}
@@ -42,11 +41,11 @@ def endpoint_get_messages(event: dict, context: LambdaContext):
             )
             
             res_list = [Message_Response(**dict(message)).model_dump() for message in messages]
-            return {"statusCode": 200, "body": json.dumps(res_list, default=str)}
+            return _response(200, res_list)
             
         except Exception as e:
             logger.error(f"Error while retrieving messages or conv {e}")
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -56,7 +55,7 @@ def endpoint_delete_conversation(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             other_user_id_str = api_event.path_parameters.get("other_user_id")
             if not other_user_id_str:
-                return {"statusCode": 400, "body": json.dumps({"detail": "other_user_id is required"})}
+                return _response(400, {"detail": "other_user_id is required"})
             other_user_id = int(other_user_id_str)
 
             await ensure_db()
@@ -72,17 +71,14 @@ def endpoint_delete_conversation(event: dict, context: LambdaContext):
                 query=query, values={"user_id": user_id, "other_user_id": other_user_id}
             )
             
-            return {
-                "statusCode": 200, 
-                "body": json.dumps({
-                    "message": "Conversation deleted successfully",
-                    "deleted_messages": result,
-                })
-            }
+            return _response(200, {
+                "message": "Conversation deleted successfully",
+                "deleted_messages": result,
+            })
 
         except Exception as e:
             logger.error(f"Error while deleting conversation: {e}")
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
 
@@ -147,10 +143,10 @@ def endpoint_get_conversations(event: dict, context: LambdaContext):
                 for r in rows
             ]
             
-            return {"statusCode": 200, "body": json.dumps(res_list, default=str)}
+            return _response(200, res_list)
 
         except Exception as e:
             logger.error(f"Error retrieving conversations: {e}")
-            return {"statusCode": 500, "body": json.dumps({"detail": str(e)})}
+            return _response(500, {"detail": str(e)})
             
     return asyncio.run(_process())
