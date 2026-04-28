@@ -51,46 +51,74 @@ class CognitoUser:
             self.groups = []
         self.is_admin = 'admin' in self.groups
 
+class AuthError(Exception):
+    """Raised when an authenticated request is missing or has invalid Cognito claims."""
+    pass
+
+
 class CognitoHelper:
     @staticmethod
     def extract_user_from_event(event: APIGatewayProxyEventV2) -> Optional[CognitoUser]:
-        """Extract user information from API Gateway event with Cognito authorizer"""
+        """Extract user info from an HTTP API v2 event with a Cognito JWT authorizer.
+
+        Expects claims at event.request_context.authorizer.jwt_claim, which is the
+        powertools accessor for HTTP API v2 + JWT authorizer. If the API Gateway
+        is REST API v1 instead, this needs to read from .authorizer.claims.
+
+        Returns None if no authorizer context is present (caller should treat as
+        unauthenticated).
+        """
         try:
-            claims = event.request_context.authorizer.jwt_claim
-            
-            username = (claims.get('cognito:username') or 
-                       claims.get('preferred_username') or 
-                       claims.get('email') or 
+            authorizer = event.request_context.authorizer
+            if authorizer is None:
+                logger.warning("Request has no authorizer context")
+                return None
+            claims = authorizer.jwt_claim
+            if not claims:
+                logger.warning("Request has authorizer context but no JWT claims")
+                return None
+
+            username = (claims.get('cognito:username') or
+                       claims.get('preferred_username') or
+                       claims.get('email') or
                        claims.get('sub'))
-            
+
             user_groups = claims.get('cognito:groups', [])
             if isinstance(user_groups, str):
                 user_groups = [user_groups]
-            
+
             return CognitoUser(
                 user_id=claims.get('sub'),
                 username=username,
                 email=claims.get('email'),
                 groups=user_groups
             )
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError, AttributeError) as e:
             logger.error(f"Failed to extract user from event: {str(e)}")
             return None
 
-async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):    
+async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
+    """Look up the database user record for the Cognito-authenticated caller.
+
+    Raises AuthError if claims are missing or no matching DB user exists.
+    Lambdas can catch AuthError to return 401; uncaught exceptions remain 500.
+    """
     cognito_user = CognitoHelper.extract_user_from_event(api_event)
 
+    if cognito_user is None:
+        raise AuthError("Unauthorized: missing or invalid authorizer context")
+
     if not cognito_user.username:
-        raise Exception("Unauthorized: No username found in claims or token")
-    
+        raise AuthError("Unauthorized: no username found in claims")
+
     user = await get_user_by_username(cognito_user.username)
     if not user:
-        raise Exception("Unauthorized: User not found in DB")
-    
+        raise AuthError("Unauthorized: user not found in DB")
+
     # Handle schema variance between id and cognito_id
     if "id" not in user and "cognito_id" in user:
         user["id"] = user["cognito_id"]
-        
+
     return user
 
 async def ensure_db():
