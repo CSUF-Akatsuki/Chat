@@ -1,6 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import jwt
-from shared.config import ALGORITHM, SECRET_KEY
+import os
+from shared.config import ALGORITHM, SECRET_KEY, settings
 from shared.db.database import get_user_by_username, init_db, db_connection, create_database_if_not_exists
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +9,40 @@ from shared.logger import logger
 from shared.redis_service import redis_service
 import asyncio
 from app.websocket_engine import manager
+
+
+# WebSocket auth: verify Cognito-issued JWTs against the User Pool's JWKs.
+# LOCAL_AUTH_MODE=true falls back to the original SECRET_KEY-based custom JWT
+# so local development without a real Cognito pool stays viable. Default is
+# Cognito mode; the env var must be explicitly set to enable the fallback.
+LOCAL_AUTH_MODE = os.environ.get("LOCAL_AUTH_MODE", "false").lower() == "true"
+
+_cognito_issuer = (
+    f"https://cognito-idp.{settings.aws_az}.amazonaws.com/"
+    f"{settings.aws_cognito_user_pool_id}"
+) if not LOCAL_AUTH_MODE else None
+_jwks_client = jwt.PyJWKClient(f"{_cognito_issuer}/.well-known/jwks.json") if _cognito_issuer else None
+
+
+def verify_token(token: str) -> dict:
+    """Verify a JWT and return its claims.
+
+    In production this validates a Cognito-issued RS256 JWT against the
+    User Pool's JWKs (signature, issuer, audience, expiration). In
+    LOCAL_AUTH_MODE it falls back to the legacy HS256 custom JWT.
+    Raises jwt.InvalidTokenError (or a subclass) on any failure.
+    """
+    if LOCAL_AUTH_MODE:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+    signing_key = _jwks_client.get_signing_key_from_jwt(token)
+    return jwt.decode(
+        token,
+        signing_key.key,
+        algorithms=["RS256"],
+        audience=settings.aws_cognito_client_id,
+        issuer=_cognito_issuer,
+    )
 
 
 origins = [
@@ -106,14 +141,14 @@ async def websocket_endpoint(websocket: WebSocket):
             return
         # jwt verification
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            username = payload.get("sub")
-            # {
-            #   "sub": "john_doe",
-            #   "exp": 1716400000,
-            #   "iat": 1716390000,
-            #   "role": "admin"
-            # }
+            payload = verify_token(token)
+            # Cognito puts the username in 'cognito:username'; fall back to
+            # 'username' (some flows) or 'sub' (the legacy custom-JWT shape).
+            username = (
+                payload.get("cognito:username")
+                or payload.get("username")
+                or payload.get("sub")
+            )
 
             if not username:
                 logger.warning("WebSocket: Invalid token payload")
@@ -129,7 +164,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 await websocket.close(code=1008, reason="User not found")
                 return
-            user_id = user["id"]
+            user_id = str(user["cognito_sub"])
             await manager.connect(user_id, websocket)
             user_channel = redis_service.get_user_channel(user_id)
             await redis_service.subscribe_to_channel(
@@ -141,7 +176,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "type": "auth_success",
                     "user": {
-                        "id": user["id"],
+                        "cognito_sub": user_id,
                         "username": user["username"],
                         "email": user["email"],
                     },
