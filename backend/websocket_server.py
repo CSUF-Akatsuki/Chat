@@ -19,6 +19,7 @@ origins = [
     "http://127.0.0.1:5174",
     "http://localhost:8000",  # FastAPI docs
     "http://127.0.0.1:8000",  # FastAPI server
+    "https://d14v638rpcg3lp.cloudfront.net",  # production CloudFront
 ]
 
 
@@ -66,6 +67,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
 # CORS must be added before routers
 app.add_middleware(
