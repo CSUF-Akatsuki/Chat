@@ -2,8 +2,7 @@ import asyncio
 import json
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
-from backend.lambdas.auth_lambda import get_or_create_event_loop
-from backend.lambdas.lib import ensure_db, get_database_user_from_event
+from lambdas.lib import ensure_db, get_database_user_from_event, get_or_create_event_loop
 from shared.db.database import db_connection
 from shared.logger import logger
 from models.friends import FriendShipResponse, FriendRequest, FriendsProfile
