@@ -88,7 +88,6 @@ Originally planned as a rebase. Aborted mid-rebase after the first of his 10 com
 - **Frontend Cognito migration** — `client/src/store/auth-slice/*` still calls the custom-JWT endpoints. The auth-success WebSocket payload now ships `user.cognito_sub` (UUID) instead of `user.id` (integer), which the frontend currently doesn't handle. Frontend Cognito migration is its own PR.
 - **Secrets Manager fallback in `config.py`** — pydantic Settings still reads from env vars only. Decision: skip this code change. Terraform will inject Secrets Manager values into Lambda env vars at deploy time, which is sufficient.
 - **Terraform / API Gateway / IAM / VPC** — project requirement #2.
-- **Cleanup of `backend/old_code/`** — archive directory, not imported, but still has stale schema references. Leave for a future cleanup commit.
 - **Pre-existing frontend TS errors** — 6 unused `import React` and 1 unused `wsError` variable. Not introduced by this PR; tackle alongside the frontend Cognito migration.
 
 ## Validation summary
