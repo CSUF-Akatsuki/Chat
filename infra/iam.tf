@@ -52,6 +52,8 @@ data "aws_iam_policy_document" "lambda_cognito" {
   statement {
     actions = [
       "cognito-idp:AdminGetUser",
+      "cognito-idp:AdminConfirmSignUp",
+      "cognito-idp:AdminUpdateUserAttributes",
     ]
     resources = [aws_cognito_user_pool.main.arn]
   }

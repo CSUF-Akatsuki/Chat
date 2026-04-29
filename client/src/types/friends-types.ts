@@ -1,5 +1,5 @@
 export interface FriendsProfile {
-  id: number;
+  id: string; // cognito_sub UUID
   username: string;
   friendship_status: string;
   friendship_created_at: string;
@@ -7,7 +7,7 @@ export interface FriendsProfile {
 
 export interface FriendShipResponse {
   id: number;
-  user_id: number;
+  user_id: string;
   friend_id: string;
   created_at: Date;
 }

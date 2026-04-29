@@ -180,7 +180,7 @@ export const useWebSocket = (): UseWebSocketReturn => {
   }, []);
 
   const sendMessage = useCallback(
-    (receiverId: number, content: string) => {
+    (receiverId: string, content: string) => {
       if (
         !isAuthenticated ||
         !ws.current ||

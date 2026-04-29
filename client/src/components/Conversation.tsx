@@ -46,7 +46,6 @@ const Conversation: React.FC = () => {
   const {
     isAuthenticated,
     user,
-    error: wsError,
     sendMessage,
     message: wsMessages,
     connectionStatus,
@@ -59,7 +58,7 @@ const Conversation: React.FC = () => {
     data: chatHistory,
   } = useQuery({
     queryKey: ["chatHistory", selectedConversation?.other_user_id],
-    queryFn: ({ queryKey }) => retrieverChatHistory(queryKey[1] as number),
+    queryFn: ({ queryKey }) => retrieverChatHistory(queryKey[1] as string),
     enabled: !!selectedConversation,
   });
 

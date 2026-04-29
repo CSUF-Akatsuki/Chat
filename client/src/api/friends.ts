@@ -3,16 +3,18 @@ import apiClient from "./axiosInstance";
 import type { ApiError } from "./fetchFriends";
 import store from "../store/store";
 
-export async function sendFriendRequest(friendId: number) {
+function authHeader() {
+  const token = store.getState().auth.token;
+  if (!token) throw new Error("Authentication required. Please log in");
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function sendFriendRequest(friendId: string) {
   try {
-    const token = store.getState().auth.token;
-    if (!token) {
-      throw new Error("Authentication required. Please log in");
-    }
     const response = await apiClient.post(
-      "/friends/send_friend_request",
-      { id: friendId },
-      { headers: { Authorization: `Bearer ${token}` } }
+      "/friends/request",
+      { cognito_sub: friendId },
+      { headers: authHeader() }
     );
     return response.data;
   } catch (error) {
@@ -26,18 +28,13 @@ export async function sendFriendRequest(friendId: number) {
     }
   }
 }
-export async function acceptFriendRequest(friendId: number) {
+
+export async function acceptFriendRequest(friendId: string) {
   try {
-    const token = store.getState().auth.token;
-    if (!token) {
-      throw new Error("Authentication required. Please log in");
-    }
-    await apiClient.patch(
+    await apiClient.post(
       `/friends/accept/${friendId}`,
       {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      { headers: authHeader() }
     );
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -51,18 +48,12 @@ export async function acceptFriendRequest(friendId: number) {
   }
 }
 
-export async function rejectFriendRequest(friendId: number) {
+export async function rejectFriendRequest(friendId: string) {
   try {
-    const token = store.getState().auth.token;
-    if (!token) {
-      throw new Error("Authentication required. Please log in");
-    }
-    await apiClient.patch(
+    await apiClient.post(
       `/friends/reject/${friendId}`,
       {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+      { headers: authHeader() }
     );
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -70,7 +61,7 @@ export async function rejectFriendRequest(friendId: number) {
       throw new Error(
         axiosError.response?.data?.message ||
           axiosError.response?.data?.detail ||
-          "Failed to accept Friend Request Please try again."
+          "Failed to reject Friend Request Please try again."
       );
     }
   }

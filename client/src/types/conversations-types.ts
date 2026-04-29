@@ -1,7 +1,7 @@
 import type { User } from "./auth-types";
 
 export interface ConversationType {
-  other_user_id: number;
+  other_user_id: string;
   username: string;
   last_message: string;
   last_message_time: Date;
@@ -14,15 +14,15 @@ export interface WebSocketMessage {
   user?: User;
   delivered?: boolean;
   id?: number;
-  sender_id: number;
-  reciever_id: number;
+  sender_id: string;
+  reciever_id: string;
   created_at: Date;
   is_read: boolean;
 }
 export interface Message {
   id: number;
-  sender_id: number;
-  reciever_id: number;
+  sender_id: string;
+  reciever_id: string;
   content: string;
   created_at: Date;
   is_read: boolean;
@@ -32,7 +32,7 @@ export interface UseWebSocketReturn {
   isAuthenticated: boolean;
   user: User | null;
   error: string | null;
-  sendMessage: (recieverId: number, content: string) => void;
+  sendMessage: (recieverId: string, content: string) => void;
   message: Message[];
   connectionStatus:
     | "disconnected"

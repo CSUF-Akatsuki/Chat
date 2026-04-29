@@ -21,7 +21,7 @@ const PeopleYouMayKnow: React.FC = () => {
     },
   });
 
-  const handleAddfriend = (userId: number) => {
+  const handleAddfriend = (userId: string) => {
     if (!userId) {
       return;
     }

@@ -3,25 +3,41 @@ import {
   createSlice,
   type PayloadAction,
 } from "@reduxjs/toolkit";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
+import apiClient from "../../api/axiosInstance";
 import { initialState } from "../../types/auth-types";
 import type {
   User,
   RegisterFormData,
   LoginFormData,
   AuthResponse,
-  ErrorResponse,
 } from "../../types/auth-types";
 
+function decodeJwt(token: string): Record<string, unknown> {
+  const payload = token.split(".")[1];
+  const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+  const json = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+  return JSON.parse(json);
+}
+
+function userFromToken(token: string): User {
+  const claims = decodeJwt(token);
+  const sub = claims.sub as string;
+  const username =
+    (claims["cognito:username"] as string) ||
+    (claims.username as string) ||
+    sub;
+  const email = claims.email as string | undefined;
+  return { id: sub, username, email };
+}
+
 export const RegisterUser = createAsyncThunk<
-  User,
+  { message: string },
   RegisterFormData,
   { rejectValue: string }
->("/auth/register", async (formData, thunkAPI) => {
+>("auth/register", async (formData, thunkAPI) => {
   try {
-    const response = await axios.post("/auth/register", formData, {
-      withCredentials: true,
-    });
+    const response = await apiClient.post("/auth/register", formData);
     return response.data;
   } catch (error) {
     const axiosError = error as AxiosError<{ detail: string }>;
@@ -30,36 +46,16 @@ export const RegisterUser = createAsyncThunk<
     );
   }
 });
+
 export const loginUser = createAsyncThunk<
   { user: User; token: string },
   LoginFormData,
   { rejectValue: string }
 >("auth/login", async (formData, thunkAPI) => {
   try {
-    const params = new URLSearchParams();
-    params.append("username", formData.username);
-    params.append("password", formData.password);
-
-    const loginResponse = await axios.post<AuthResponse>(
-      "/auth/token",
-      params,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        withCredentials: true,
-      }
-    );
-    const token = loginResponse.data?.access_token;
-    const userResponse = await axios.get<User>("/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return {
-      user: userResponse.data,
-      token: token,
-    };
+    const response = await apiClient.post<AuthResponse>("/auth/login", formData);
+    const token = response.data.access_token;
+    return { user: userFromToken(token), token };
   } catch (error) {
     const axiosError = error as AxiosError<{ detail: string }>;
     return thunkAPI.rejectWithValue(
@@ -74,12 +70,10 @@ export const refreshAccessToken = createAsyncThunk<
   { rejectValue: string }
 >("auth/refresh", async (_, thunkAPI) => {
   try {
-    const response = await axios.post<AuthResponse>(
+    const response = await apiClient.post<AuthResponse>(
       "/auth/refresh",
       {},
-      {
-        withCredentials: true,
-      }
+      { withCredentials: true }
     );
     return response.data.access_token;
   } catch (error) {
@@ -93,58 +87,44 @@ export const refreshAccessToken = createAsyncThunk<
 export const checkAuth = createAsyncThunk<User, void, { rejectValue: string }>(
   "auth/checkAuth",
   async (_, thunkAPI) => {
+    const state = thunkAPI.getState() as { auth: typeof initialState };
+    const token = state.auth.token;
+    if (!token) {
+      return thunkAPI.rejectWithValue("No token");
+    }
     try {
-      const state = thunkAPI.getState() as { auth: typeof initialState };
-      let token = state.auth.token;
-
-      if (!token) {
-        const refreshResult = await thunkAPI.dispatch(refreshAccessToken());
-        if (refreshAccessToken.fulfilled.match(refreshResult)) {
-          token = refreshResult.payload;
-        } else {
-          return thunkAPI.rejectWithValue("No valid token found");
-        }
-      }
-
-      const response = await axios.get<User>(`/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return response.data;
-    } catch (error) {
-      // Token is invalid or expired
-      const axiosError = error as AxiosError<ErrorResponse>;
-      return thunkAPI.rejectWithValue(
-        axiosError.response?.data?.detail || "Authentication failed"
-      );
+      return userFromToken(token);
+    } catch {
+      return thunkAPI.rejectWithValue("Invalid token");
     }
   }
 );
 
-// Logout user
-export const logoutUser = createAsyncThunk("auth/logout", async () => {
-  await axios.post(
-    "/auth/logout",
-    {},
-    {
-      withCredentials: true,
-    }
-  );
+export const logoutUser = createAsyncThunk("auth/logout", async (_, thunkAPI) => {
+  const state = thunkAPI.getState() as { auth: typeof initialState };
+  const token = state.auth.token;
+  try {
+    await apiClient.post(
+      "/auth/logout",
+      {},
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+  } catch {
+    // logout is best-effort; clear local state regardless
+  }
 });
-//auth slice hai
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
     setUser: (state, action: PayloadAction<User | null>) => {
-      (state.user = action.payload), (state.isAuthenticated = !!action.payload);
+      state.user = action.payload;
+      state.isAuthenticated = !!action.payload;
     },
-    // Clear error
     clearError: (state) => {
       state.error = null;
-    }, // Reset auth state
+    },
     resetAuth: (state) => {
       state.isAuthenticated = false;
       state.user = null;
@@ -155,7 +135,6 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Register User
       .addCase(RegisterUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -171,7 +150,6 @@ const authSlice = createSlice({
         state.user = null;
       })
 
-      // Login User
       .addCase(loginUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
@@ -192,7 +170,9 @@ const authSlice = createSlice({
       })
 
       .addCase(refreshAccessToken.fulfilled, (state, action) => {
-        (state.token = action.payload), (state.isAuthenticated = true);
+        state.token = action.payload;
+        state.user = userFromToken(action.payload);
+        state.isAuthenticated = true;
       })
       .addCase(refreshAccessToken.rejected, (state) => {
         state.isAuthenticated = false;
@@ -200,7 +180,6 @@ const authSlice = createSlice({
         state.token = null;
       })
 
-      // Check Auth
       .addCase(checkAuth.pending, (state) => {
         state.isLoading = true;
       })
@@ -218,7 +197,6 @@ const authSlice = createSlice({
         state.error = null;
       })
 
-      // Logout User hai
       .addCase(logoutUser.fulfilled, (state) => {
         state.isAuthenticated = false;
         state.user = null;
