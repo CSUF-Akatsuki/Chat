@@ -1,9 +1,9 @@
 # Python
-server/venv/
-__pycache__/
 *.pyc
 *.pyo
-.env
+__pycache__/
+/.venv/
+**/venv/
 
 # Node
 client/node_modules/
@@ -11,3 +11,12 @@ client/dist/
 
 # OS
 .DS_Store
+
+# Misc
+*.lock
+/.aws-sam/
+
+# Local config and secrets (use env.json.example as template)
+env.json
+.env
+.env.local

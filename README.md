@@ -258,6 +258,23 @@ npm install
 npm run dev
 ```
 
+### Lambda / Cognito Configuration
+
+The auth, friends, and message lambdas read Cognito User Pool credentials from environment variables. For local invocation, copy the template and fill in real values:
+
+```bash
+cp env.json.example env.json
+# edit env.json with values from the AWS Cognito User Pool
+```
+
+`env.json` is gitignored — never commit it. Required fields:
+
+- `AWS_COGNITO_USER_POOL_ID` — e.g. `us-west-1_abc123`
+- `AWS_COGNITO_CLIENT_ID` — App client ID from the User Pool
+- `AWS_COGNITO_CLIENT_SECRET` — App client secret (if the client is configured with one)
+
+In production, these values are injected by Terraform from AWS Secrets Manager into the Lambda environment.
+
 ---
 
 ## API Endpoints

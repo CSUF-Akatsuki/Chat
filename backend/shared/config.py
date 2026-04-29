@@ -3,7 +3,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 load_dotenv()
-import os
 
 # SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 # ALGORITHM = "HS256"
@@ -17,8 +16,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "0.0.0.0"
     port: int = 8000
-
-    secret_key: str = Field(description="jwt secret")
+    aws_az: str = Field(description="AWS availability zone", default='us-east-1')
+    aws_cognito_user_pool_id: str = Field(description="AWS Cognito User Pool ID")
+    aws_cognito_client_id: str = Field(description="AWS Cognito Client ID")
+    aws_cognito_client_secret: str = Field(description="AWS Cognito Client Secret", default=None) # Default to None in case not needed
+    secret_key: str = Field(description="jwt secret", default="CHANGE_THIS_IN_PROD")
     algorithm: str = Field(default="HS256", description="JWT algo")
     access_token_expire_minutes: int = Field(default=30, description="jwt token")
     refresh_token_expire_days: int = Field(
@@ -52,6 +54,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+AWS_COGNITO_CLIENT_SECRET = settings.aws_cognito_client_secret
+AWS_COGNITO_CLIENT_ID = settings.aws_cognito_client_id
+AWS_COGNITO_USER_POOL_ID = settings.aws_cognito_user_pool_id
+AWS_AZ = settings.aws_az
 SECRET_KEY = settings.secret_key
 ALGORITHM = settings.algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes

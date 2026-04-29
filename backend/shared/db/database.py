@@ -1,8 +1,8 @@
 from databases import Database
 from pydantic import EmailStr
-from core.config import settings
+from shared.config import settings
 from typing import Optional
-from core.logger import logger
+from shared.logger import logger
 import asyncpg
 
 
@@ -46,10 +46,9 @@ async def init_db():
         await db_connection.execute(
             """
                 CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
+                    cognito_sub UUID PRIMARY KEY,
                     email TEXT UNIQUE NOT NULL,
                     username TEXT UNIQUE NOT NULL,
-                    hashed_password TEXT NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """
@@ -60,16 +59,16 @@ async def init_db():
             """
             CREATE TABLE IF NOT EXISTS messages (
                 id SERIAL PRIMARY KEY,
-                sender_id INTEGER NOT NULL,
-                reciever_id INTEGER NOT NULL,
+                sender_id UUID NOT NULL,
+                reciever_id UUID NOT NULL,
                 content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW(),
                 is_read BOOLEAN DEFAULT FALSE,
-                
+
                 CONSTRAINT fk_sender FOREIGN KEY (sender_id)
-                    REFERENCES users(id) ON DELETE CASCADE,
+                    REFERENCES users(cognito_sub) ON DELETE CASCADE,
                 CONSTRAINT fk_reciever FOREIGN KEY (reciever_id)
-                    REFERENCES users(id) ON DELETE CASCADE
+                    REFERENCES users(cognito_sub) ON DELETE CASCADE
             )
             """
         )
@@ -92,8 +91,8 @@ async def init_db():
             """
                 CREATE TABLE IF NOT EXISTS friendships (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                friend_id INTEGER REFERENCES users(id),
+                user_id UUID REFERENCES users(cognito_sub),
+                friend_id UUID REFERENCES users(cognito_sub),
                 STATUS VARCHAR(20) DEFAULT 'none',
                 created_at TIMESTAMP DEFAULT NOW(),
                 UNIQUE(user_id,friend_id)
@@ -117,8 +116,8 @@ async def init_db():
             """
                                     CREATE TABLE IF NOT EXISTS conversations (
                                     id SERIAL PRIMARY KEY,
-                                    sender_id INTEGER REFERENCES users(id),
-                                    recierver_id INTEGER REFERENCES users(id),
+                                    sender_id UUID REFERENCES users(cognito_sub),
+                                    recierver_id UUID REFERENCES users(cognito_sub),
                                     content varchar(200),
                                     created_at TIMESTAMP DEFAULT NOW(),
                                     is_read BOOLEAN DEFAULT FALSE)
