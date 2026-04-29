@@ -68,9 +68,8 @@ resource "aws_lambda_function" "endpoint" {
     command = ["${each.value.module}.${each.value.fn}"]
   }
 
-  timeout                        = 30
-  memory_size                    = 512
-  reserved_concurrent_executions = 5
+  timeout     = 30
+  memory_size = 512
 
   vpc_config {
     subnet_ids         = data.aws_subnets.private_app.ids

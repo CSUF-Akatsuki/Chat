@@ -4,6 +4,7 @@ import os
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
+from shared.config import settings
 from shared.db.database import db_connection, get_user_by_username
 
 logger = logging.getLogger()
@@ -119,25 +120,24 @@ async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
     return user
 
 async def ensure_db():
-    """Connect the global Database to the current asyncio loop.
+    """Reset the global Database for the current asyncio loop.
 
     Each Lambda invocation runs under a fresh asyncio.run() loop, but the
-    module-global db_connection persists across invocations. Its asyncpg
-    pool is bound to the previous (closed) loop, so we must replace it.
-    Graceful disconnect() can hang or error against a dead loop, so we
-    forcefully terminate the old pool via internals, reset the connection
-    flag, then call connect() to build a fresh pool on the current loop.
+    module-global db_connection's asyncpg pool was created on the previous
+    (now-closed) loop. We can't reassign the global because lambdas import
+    the symbol directly (`from shared.db.database import db_connection`),
+    so they'd hold a stale reference. Instead, terminate the old pool and
+    re-run __init__ in place — same object, fresh internal state — then
+    connect on the current loop.
     """
     try:
         backend = getattr(db_connection, "_backend", None)
         old_pool = getattr(backend, "_pool", None) if backend else None
         if old_pool is not None:
             old_pool.terminate()
-            backend._pool = None
     except Exception:
         pass
-    try:
-        db_connection._is_connected = False
-    except Exception:
-        pass
+    type(db_connection).__init__(
+        db_connection, settings.database_url, min_size=1, max_size=2
+    )
     await db_connection.connect()
