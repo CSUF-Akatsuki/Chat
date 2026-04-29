@@ -181,7 +181,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "type": "auth_success",
                     "user": {
-                        "cognito_sub": user_id,
+                        "id": user_id,  # frontend's User.id; matches the JWT-decoded id used elsewhere
                         "username": user["username"],
                         "email": user["email"],
                     },
@@ -237,10 +237,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                     continue
 
+                # asyncpg returns UUID columns as uuid.UUID instances, which
+                # the stdlib json encoder can't handle. Cast to str so the
+                # send_json/redis publish paths don't blow up.
                 message_data = {
                     "id": saved_message["id"],
-                    "sender_id": saved_message["sender_id"],
-                    "reciever_id": saved_message["reciever_id"],
+                    "sender_id": str(saved_message["sender_id"]),
+                    "reciever_id": str(saved_message["reciever_id"]),
                     "content": saved_message["content"],
                     "created_at": saved_message["created_at"].isoformat(),
                     "is_read": saved_message["is_read"],
