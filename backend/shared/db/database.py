@@ -6,7 +6,7 @@ from shared.logger import logger
 import asyncpg
 
 
-db_connection = Database(settings.database_url)
+db_connection = Database(settings.database_url, min_size=1, max_size=2)
 
 
 async def create_database_if_not_exists():
@@ -139,10 +139,13 @@ async def get_user_by_username(username: str) -> Optional[dict]:
         )
         return dict(row) if row else None
     except Exception as e:
+        # Re-raise so callers see real DB errors instead of treating them as
+        # "user not found." ensure_db() in the lambdas handles loop-staleness;
+        # any error reaching here is a real bug worth surfacing.
         logger.error(
             f"Error fetching user by username '{username}': {e}", exc_info=True
         )
-        return None
+        raise
 
 
 async def get_user_by_email(email: EmailStr) -> Optional[dict]:

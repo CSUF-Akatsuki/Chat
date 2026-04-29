@@ -119,5 +119,25 @@ async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
     return user
 
 async def ensure_db():
-    if not db_connection.is_connected:
-        await db_connection.connect()
+    """Connect the global Database to the current asyncio loop.
+
+    Each Lambda invocation runs under a fresh asyncio.run() loop, but the
+    module-global db_connection persists across invocations. Its asyncpg
+    pool is bound to the previous (closed) loop, so we must replace it.
+    Graceful disconnect() can hang or error against a dead loop, so we
+    forcefully terminate the old pool via internals, reset the connection
+    flag, then call connect() to build a fresh pool on the current loop.
+    """
+    try:
+        backend = getattr(db_connection, "_backend", None)
+        old_pool = getattr(backend, "_pool", None) if backend else None
+        if old_pool is not None:
+            old_pool.terminate()
+            backend._pool = None
+    except Exception:
+        pass
+    try:
+        db_connection._is_connected = False
+    except Exception:
+        pass
+    await db_connection.connect()
