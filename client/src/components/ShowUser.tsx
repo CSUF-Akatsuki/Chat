@@ -1,6 +1,5 @@
 // testing auth
 
-import React from "react";
 import { logoutUser } from "../store/auth-slice";
 import { useAppSelector, useAppDispatch } from "../store/hooks/hook";
 const ShowUser = () => {

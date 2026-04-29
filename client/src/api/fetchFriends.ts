@@ -12,7 +12,7 @@ export async function getFriends() {
     if (!token) {
       throw new Error("Authentication required. Please log in.");
     }
-    const response = await apiClient.get<FriendsProfile[]>("/friends/allfriends", {
+    const response = await apiClient.get<FriendsProfile[]>("/friends", {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
@@ -35,7 +35,7 @@ export async function getPeopleYouMayKnow() {
       throw new Error("Authentication required. Please log in.");
     }
     const response = await apiClient.get<FriendsProfile[]>(
-      "/friends/peopleyoumayknow",
+      "/friends/suggestions",
       {
         headers: { Authorization: `Bearer ${token}` },
       }
@@ -60,7 +60,7 @@ export async function getFriendRequests() {
       throw new Error("Authentication required. Please log in.");
     }
     const response = await apiClient.get<FriendsProfile[]>(
-      "/friends/friendrequests",
+      "/friends/requests",
       {
         headers: { Authorization: `Bearer ${token}` },
       }

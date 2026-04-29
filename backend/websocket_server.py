@@ -36,13 +36,18 @@ def verify_token(token: str) -> dict:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
     signing_key = _jwks_client.get_signing_key_from_jwt(token)
-    return jwt.decode(
+    payload = jwt.decode(
         token,
         signing_key.key,
         algorithms=["RS256"],
-        audience=settings.aws_cognito_client_id,
         issuer=_cognito_issuer,
+        options={"verify_aud": False},
     )
+    expected = settings.aws_cognito_client_id
+    actual = payload.get("client_id") or payload.get("aud")
+    if actual != expected:
+        raise jwt.InvalidTokenError(f"client_id/aud mismatch: {actual!r} != {expected!r}")
+    return payload
 
 
 origins = [

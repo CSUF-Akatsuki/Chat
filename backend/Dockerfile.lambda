@@ -1,0 +1,12 @@
+FROM public.ecr.aws/lambda/python:3.12-arm64
+
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt -t ${LAMBDA_TASK_ROOT}
+
+COPY lambdas/  ${LAMBDA_TASK_ROOT}/lambdas/
+COPY shared/   ${LAMBDA_TASK_ROOT}/shared/
+COPY models/   ${LAMBDA_TASK_ROOT}/models/
+
+# CMD is overridden per-function by Terraform's image_config.command.
+# Default kept here so the image is runnable for local sanity checks.
+CMD ["lambdas.auth_lambda.endpoint_login"]

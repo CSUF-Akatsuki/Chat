@@ -1,23 +1,19 @@
-# base image
 FROM python:3.12-slim
 
-# working directory
 WORKDIR /app
 
-# install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-
-COPY ./server/app/requirements.txt .
-
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# copy application code 
-# This copies: api/, core/, db/, models/, main.py, .env
-COPY ./server/app/ ./
+COPY shared/             ./shared/
+COPY models/             ./models/
+COPY app/                ./app/
+COPY websocket_server.py ./
 
 ENV PYTHONPATH=/app
 
@@ -26,5 +22,4 @@ EXPOSE 8000
 RUN adduser --disabled-password --no-create-home appuser
 USER appuser
 
-# run fastapi server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "websocket_server:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,4 +1,3 @@
-import React from "react";
 import { Link } from "react-router";
 import { FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
 import { HiOutlineChatBubbleLeftRight } from "react-icons/hi2";

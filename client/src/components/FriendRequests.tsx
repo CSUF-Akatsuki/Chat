@@ -36,13 +36,13 @@ const FriendRequests: React.FC = () => {
     queryFn: getFriendRequests,
   });
 
-  const handleAcceptFriendRequest = (userId: number) => {
+  const handleAcceptFriendRequest = (userId: string) => {
     if (!userId) {
       return;
     }
     acceptMutate(userId);
   };
-  const handleRejectFriendRequest = (userId: number) => {
+  const handleRejectFriendRequest = (userId: string) => {
     if (!userId) {
       return;
     }

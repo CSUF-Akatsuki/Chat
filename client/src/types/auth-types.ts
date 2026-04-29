@@ -13,15 +13,15 @@ export const initialState: AuthState = {
   error: null,
 };
 export interface User {
-  id: number;
-  email: string;
+  id: string; // Cognito sub (UUID)
+  email?: string;
   username: string;
 }
 export interface UserDetail {
-  id: number;
-  email: string;
+  id: string;
+  email?: string;
   username: string;
-  created_at: Date;
+  created_at?: Date;
 }
 export interface RegisterFormData {
   email: string;
