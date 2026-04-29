@@ -94,7 +94,7 @@ class RedisServer:
                 f"📤 Published to {channel} (reached {subscribers_count} subscribers)"
             )
             return True
-        except json.JSONEncodeError as e:
+        except TypeError as e:
             logger.error(f"Failed to serialize message for channel '{channel}': {e}")
             return False
         except RedisError as e:
