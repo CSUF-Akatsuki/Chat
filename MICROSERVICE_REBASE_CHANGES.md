@@ -53,16 +53,53 @@ After rebase, the following bugs (identified during code review) will be fixed i
 - **API Gateway / IAM / VPC config** — will be provided by the Terraform requirement (project requirement #2). The microservice branch does not need to ship infra.
 - **Production deployment of lambdas** — depends on Terraform completion.
 
-## Change log (updated as work proceeds)
+## Change log (actual)
 
-| Date | Change | File(s) | Author |
-|------|--------|---------|--------|
-| 2026-04-28 | Document created | `MICROSERVICE_REBASE_CHANGES.md` | Josh |
-| _pending_ | Rebase onto new main | (entire branch) | Josh |
-| _pending_ | Fix DB schema mismatch | `database.py`, `lib.py` | Josh |
-| _pending_ | Fix lambda import paths | `friends_lambda.py`, `message_lambda.py` | Josh |
-| _pending_ | Sanitize env.json | `env.json` | Josh |
+Listed in commit order. SHAs are short refs from `git log main..refactor-to-microservice-and-lambda`.
+
+### Stage 1 — Pre-merge lambda-only fixes (2026-04-28)
+
+| SHA | Change | Files |
+|-----|--------|-------|
+| `4553db2` | Standardize lambda import paths (drop broken `backend.` prefix) | `friends_lambda.py`, `message_lambda.py` |
+| `34f848e` | Rename `env.json` → `env.json.example`, gitignore real config | `env.json`, `.gitignore`, `README.md` |
+| `a26d962` | Replace `get_or_create_event_loop` with `asyncio.run` (60 lines removed) | `auth_lambda.py`, `friends_lambda.py`, `message_lambda.py`, `lib.py` |
+| `a104400` | Add `_response()` helper, standardize all 16 handler returns; fix plain-string-body bugs in `auth_lambda` and the Token positional-arg inconsistency in `endpoint_refresh` | `auth_lambda.py`, `friends_lambda.py`, `message_lambda.py`, `lib.py` |
+| `e34afd7` | Harden `extract_user_from_event` against missing authorizer; introduce `AuthError` | `lib.py` |
+
+### Stage 2 — Merge main into branch (2026-04-28)
+
+Originally planned as a rebase. Aborted mid-rebase after the first of his 10 commits produced a modify/delete on `server/app/main.py` plus rename-conflicts that would have compounded on each subsequent commit. Switched to `git merge main` for a single conflict-resolution session.
+
+| SHA | Change | Files |
+|-----|--------|-------|
+| `7d2e045` | Merge commit. Resolved `.gitignore` (combined both versions, deduped). Accepted deletion of `server/app/main.py` (his refactor moved entry point to `backend/websocket_server.py`); phase-2 additions there ported in next commit. Verified auto-merged shared files preserved phase-2 SSL: `backend/shared/db/database.py`, `redis_service.py`, `config.py` all retain `ssl='require'` / `rediss://` / `?ssl=require`. | many |
+
+### Stage 3 — Post-merge shared-file fixes (2026-04-28)
+
+| SHA | Change | Files |
+|-----|--------|-------|
+| `89e07c8` | Port phase-2 CloudFront CORS origin and `/health` endpoint from deleted `server/app/main.py` to `backend/websocket_server.py` | `backend/websocket_server.py` |
+| `4d69d80` | DB schema standardization: rename `cognito_id` → `cognito_sub`, fix INTEGER → UUID type mismatch on every user-FK column, remove the schema-variance workaround in `lib.py:28`, update lambda queries and pydantic models accordingly | `database.py`, `lib.py`, `friends_lambda.py`, `message_lambda.py`, `models/friends.py`, `models/messages.py`, `models/users_model.py` |
+| `adaeccd` | WebSocket Cognito JWT verification using PyJWT's `PyJWKClient` to fetch and cache User Pool JWKs; `LOCAL_AUTH_MODE=true` env-var fallback to legacy `SECRET_KEY` HS256 path for offline development | `backend/websocket_server.py` |
+
+### Out of scope (deferred to separate PRs)
+
+- **Frontend Cognito migration** — `client/src/store/auth-slice/*` still calls the custom-JWT endpoints. The auth-success WebSocket payload now ships `user.cognito_sub` (UUID) instead of `user.id` (integer), which the frontend currently doesn't handle. Frontend Cognito migration is its own PR.
+- **Secrets Manager fallback in `config.py`** — pydantic Settings still reads from env vars only. Decision: skip this code change. Terraform will inject Secrets Manager values into Lambda env vars at deploy time, which is sufficient.
+- **Terraform / API Gateway / IAM / VPC** — project requirement #2.
+- **Cleanup of `backend/old_code/`** — archive directory, not imported, but still has stale schema references. Leave for a future cleanup commit.
+- **Pre-existing frontend TS errors** — 6 unused `import React` and 1 unused `wsError` variable. Not introduced by this PR; tackle alongside the frontend Cognito migration.
+
+## Validation summary
+
+| Check | Result |
+|-------|--------|
+| `python3 -m py_compile` on all current backend Python | ✅ pass |
+| `pytest backend/tests/` | ⏭ skipped (needs `aws_lambda_powertools` in venv; tests are stubs per audit) |
+| `cd client && npm run build` | ❌ fails on 6 pre-existing unused-import errors, not from this PR |
+| Docker compose smoke | ⏭ skipped (no useful local AWS deps without Cognito User Pool) |
 
 ## Approval
 
-Teammate (original author of `refactor-to-microservice-and-lambda`) has approved the rebase approach as of 2026-04-28.
+Teammate (original author of `refactor-to-microservice-and-lambda`) authorized the rebase approach as of 2026-04-28 and is unavailable for ~2 days, so admin (Josh) drove the merge and post-merge fixes.
