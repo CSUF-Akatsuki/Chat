@@ -26,8 +26,12 @@ aws ecr get-login-password --region "${REGION}" \
   | docker login --username AWS --password-stdin "${ECR_HOST}"
 
 echo "Building image (linux/arm64)..."
+# --provenance=false + --sbom=false produces a Docker v2 manifest (no OCI
+# attestation manifests), which is the only format AWS Lambda accepts.
 docker buildx build \
   --platform linux/arm64 \
+  --provenance=false \
+  --sbom=false \
   -f Dockerfile.lambda \
   -t "${IMAGE}:${TAG}" \
   -t "${IMAGE}:latest" \
