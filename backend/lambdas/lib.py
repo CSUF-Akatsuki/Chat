@@ -79,6 +79,7 @@ class CognitoHelper:
                 return None
 
             username = (claims.get('cognito:username') or
+                       claims.get('username') or
                        claims.get('preferred_username') or
                        claims.get('email') or
                        claims.get('sub'))

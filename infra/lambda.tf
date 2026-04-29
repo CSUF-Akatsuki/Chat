@@ -1,14 +1,28 @@
 locals {
   image_uri = "${aws_ecr_repository.lambdas.repository_url}:${var.lambda_image_tag}"
 
+  db_secret    = jsondecode(data.aws_secretsmanager_secret_version.db.secret_string)
+  redis_secret = jsondecode(data.aws_secretsmanager_secret_version.redis.secret_string)
+  jwt_secret   = jsondecode(data.aws_secretsmanager_secret_version.jwt.secret_string)
+
   common_env = {
     AWS_COGNITO_USER_POOL_ID  = aws_cognito_user_pool.main.id
     AWS_COGNITO_CLIENT_ID     = aws_cognito_user_pool_client.backend.id
     AWS_COGNITO_CLIENT_SECRET = aws_cognito_user_pool_client.backend.client_secret
     AWS_AZ                    = data.aws_region.current.name
     CORS_ALLOWED_ORIGIN       = var.cors_allowed_origin
-    DB_SECRET_ARN             = data.aws_secretsmanager_secret.db.arn
-    REDIS_SECRET_ARN          = data.aws_secretsmanager_secret.redis.arn
+
+    POSTGRES_HOST     = local.db_secret.host
+    POSTGRES_PORT     = tostring(local.db_secret.port)
+    POSTGRES_DB       = local.db_secret.dbname
+    POSTGRES_USER     = local.db_secret.username
+    POSTGRES_PASSWORD = local.db_secret.password
+
+    REDIS_HOST     = data.aws_elasticache_replication_group.redis.primary_endpoint_address
+    REDIS_PORT     = tostring(data.aws_elasticache_replication_group.redis.port)
+    REDIS_PASSWORD = local.redis_secret.auth_token
+
+    SECRET_KEY = local.jwt_secret.secret_key
   }
 
   # handler_command per logical endpoint maps to the lambda code's module.function.

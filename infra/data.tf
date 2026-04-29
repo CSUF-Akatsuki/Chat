@@ -40,10 +40,26 @@ data "aws_secretsmanager_secret" "db" {
   name = "room67chat/db"
 }
 
+data "aws_secretsmanager_secret_version" "db" {
+  secret_id = data.aws_secretsmanager_secret.db.id
+}
+
 data "aws_secretsmanager_secret" "redis" {
   name = "room67chat/redis"
 }
 
+data "aws_secretsmanager_secret_version" "redis" {
+  secret_id = data.aws_secretsmanager_secret.redis.id
+}
+
 data "aws_secretsmanager_secret" "jwt" {
   name = "room67chat/jwt"
+}
+
+data "aws_secretsmanager_secret_version" "jwt" {
+  secret_id = data.aws_secretsmanager_secret.jwt.id
+}
+
+data "aws_elasticache_replication_group" "redis" {
+  replication_group_id = "Room67Chat-redis"
 }
