@@ -181,7 +181,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 {
                     "type": "auth_success",
                     "user": {
-                        "cognito_sub": user_id,
+                        "id": user_id,  # frontend's User.id; matches the JWT-decoded id used elsewhere
                         "username": user["username"],
                         "email": user["email"],
                     },
