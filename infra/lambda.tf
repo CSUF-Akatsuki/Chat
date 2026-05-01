@@ -23,6 +23,9 @@ locals {
     REDIS_PASSWORD = local.redis_secret.auth_token
 
     SECRET_KEY = local.jwt_secret.secret_key
+
+    MUTALIP_BOT_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    BEDROCK_MODEL_ID = "us.amazon.nova-lite-v1:0"
   }
 
   # handler_command per logical endpoint maps to the lambda code's module.function.
@@ -85,5 +88,45 @@ resource "aws_lambda_function" "endpoint" {
     aws_iam_role_policy_attachment.lambda_vpc,
     aws_iam_role_policy_attachment.lambda_secrets,
     aws_cloudwatch_log_group.lambda,
+  ]
+}
+
+# Chatbot Lambda — invoked directly by the WebSocket server (fire-and-forget).
+# Not exposed via API Gateway.
+resource "aws_cloudwatch_log_group" "chatbot" {
+  name              = "/aws/lambda/${var.project}-chatbot"
+  retention_in_days = 14
+}
+
+resource "aws_lambda_function" "chatbot" {
+  function_name = "${var.project}-chatbot"
+  role          = aws_iam_role.lambda_exec.arn
+  package_type  = "Image"
+  image_uri     = local.image_uri
+  architectures = ["arm64"]
+
+  image_config {
+    command = ["lambdas.chatbot_lambda.endpoint_chatbot"]
+  }
+
+  timeout     = 60
+  memory_size = 512
+
+  vpc_config {
+    subnet_ids         = data.aws_subnets.private_app.ids
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+
+  environment {
+    variables = merge(local.common_env, {
+      CHATBOT_LAMBDA_NAME = "${var.project}-chatbot"
+    })
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic,
+    aws_iam_role_policy_attachment.lambda_vpc,
+    aws_iam_role_policy_attachment.lambda_secrets,
+    aws_cloudwatch_log_group.chatbot,
   ]
 }

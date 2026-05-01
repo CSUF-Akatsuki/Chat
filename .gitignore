@@ -20,3 +20,6 @@ client/dist/
 env.json
 .env
 .env.local
+
+# Kiro IDE files
+.kiro/

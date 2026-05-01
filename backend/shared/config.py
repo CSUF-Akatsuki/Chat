@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     redis_db: int = Field(default=1, description="redis db name")
     redis_password: str = Field(default="", description="redis password")
 
+    # chatbot
+    mutalip_bot_uuid: str = Field(
+        default="a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        description="Fixed UUID for the Mutalip Kurban chatbot user",
+    )
+
 
 settings = Settings()
 
@@ -63,3 +69,4 @@ SECRET_KEY = settings.secret_key
 ALGORITHM = settings.algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 REFRESH_TOKEN_EXPIRE_DAYS = settings.refresh_token_expire_days
+MUTALIP_BOT_UUID = settings.mutalip_bot_uuid

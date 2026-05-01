@@ -125,6 +125,15 @@ async def init_db():
         )
         logger.debug("Conversations table init")
 
+        # Local import to avoid circular dependency:
+        # seed_bot_user imports from shared.db.database, so we defer the import
+        # until after all tables are created.
+        try:
+            from scripts.seed_bot_user import seed_bot_user
+            await seed_bot_user()
+        except Exception as seed_error:
+            logger.error(f"❌ seed_bot_user failed: {seed_error}", exc_info=True)
+
         logger.info("✅ Database initialization complete")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}", exc_info=True)

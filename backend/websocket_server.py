@@ -1,6 +1,8 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import jwt
 import os
+import json
+import boto3
 from shared.config import ALGORITHM, SECRET_KEY, settings
 from shared.db.database import get_user_by_username, init_db, db_connection, create_database_if_not_exists
 from contextlib import asynccontextmanager
@@ -9,6 +11,11 @@ from shared.logger import logger
 from shared.redis_service import redis_service
 import asyncio
 from app.websocket_engine import manager
+
+MUTALIP_BOT_UUID = os.environ.get("MUTALIP_BOT_UUID", "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+CHATBOT_LAMBDA_NAME = os.environ.get("CHATBOT_LAMBDA_NAME", "")
+
+_lambda_client = boto3.client("lambda", region_name=os.environ.get("AWS_AZ", "us-east-1"))
 
 
 # WebSocket auth: verify Cognito-issued JWTs against the User Pool's JWKs.
@@ -248,6 +255,24 @@ async def websocket_endpoint(websocket: WebSocket):
                     "created_at": saved_message["created_at"].isoformat(),
                     "is_read": saved_message["is_read"],
                 }
+
+                # Fire-and-forget: invoke Chatbot Lambda if the receiver is the bot
+                if reciever_id == MUTALIP_BOT_UUID and CHATBOT_LAMBDA_NAME:
+                    try:
+                        _lambda_client.invoke(
+                            FunctionName=CHATBOT_LAMBDA_NAME,
+                            InvocationType="Event",  # fire-and-forget
+                            Payload=json.dumps({
+                                "sender_id": message_data["sender_id"],
+                                "reciever_id": message_data["reciever_id"],
+                                "content": message_data["content"],
+                                "message_id": message_data["id"],
+                            }),
+                        )
+                        logger.info(f"Chatbot Lambda invoked for message {message_data['id']}")
+                    except Exception as e:
+                        logger.error(f"Failed to invoke Chatbot_Lambda: {e}")
+                        # Non-fatal: user still gets message_sent
 
                 local_delivered = await manager.send_private_message(
                     reciever_id, message_data

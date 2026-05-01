@@ -1,4 +1,5 @@
 import asyncio
+import os
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
 from lambdas.lib import ensure_db, get_database_user_from_event, _response
@@ -243,11 +244,13 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
             api_event = APIGatewayProxyEventV2(event)
             await ensure_db()
             current_user = await get_database_user_from_event(api_event)
+            bot_uuid = os.environ.get("MUTALIP_BOT_UUID", "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
             query = """
                         SELECT cognito_sub, username, 'none' as friendship_status, NOW() as friendship_created_at
                         FROM users
                         WHERE cognito_sub != :user_id
+                        AND cognito_sub != :bot_uuid
                         AND cognito_sub NOT IN (
                             SELECT friend_id FROM friendships WHERE user_id = :user_id
                             UNION
@@ -255,7 +258,7 @@ def endpoint_people_you_may_know(event: dict, context: LambdaContext):
                         )
                     """
             people = await db_connection.fetch_all(
-                query=query, values={"user_id": current_user["cognito_sub"]}
+                query=query, values={"user_id": current_user["cognito_sub"], "bot_uuid": bot_uuid}
             )
             
             res_list = [FriendsProfile(**dict(person)).model_dump() for person in people]

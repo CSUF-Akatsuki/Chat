@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY shared/             ./shared/
 COPY models/             ./models/
 COPY app/                ./app/
+COPY scripts/            ./scripts/
 COPY websocket_server.py ./
 
 ENV PYTHONPATH=/app

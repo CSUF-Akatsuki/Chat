@@ -33,3 +33,13 @@ output "lambda_security_group_id" {
   description = "Security group attached to all Lambda functions."
   value       = aws_security_group.lambda.id
 }
+
+output "chatbot_lambda_arn" {
+  description = "ARN of the Chatbot Lambda. Set as CHATBOT_LAMBDA_NAME on the WebSocket server ECS task container environment."
+  value       = aws_lambda_function.chatbot.arn
+}
+
+output "ecs_task_role_arn" {
+  description = "ARN of the ECS task IAM role. Set as task_role_arn on the WebSocket server ECS task definition so it can invoke the Chatbot Lambda."
+  value       = aws_iam_role.ecs_task.arn
+}

@@ -2,6 +2,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
 from shared.auth import login, register, refresh_session, confirm_registration, logout
 from shared.db.database import db_connection
+from shared.logger import logger
 from models.users_model import ConfirmRegistrationRequest, CreateUserRequest, Token, UserLoginRequest
 from lambdas.lib import _response, ensure_db
 import asyncio
@@ -42,6 +43,19 @@ def endpoint_register(event: dict, context: LambdaContext):
                 "INSERT INTO users (cognito_sub, email, username) VALUES (:sub, :email, :username)",
                 values={"sub": sub, "email": user.email, "username": user.username},
             )
+            # Non-fatal: create friendship with the Mutalip bot
+            try:
+                bot_uuid = os.environ.get("MUTALIP_BOT_UUID", "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+                await db_connection.execute(
+                    """
+                    INSERT INTO friendships (user_id, friend_id, status)
+                    VALUES (:user_id, :friend_id, 'accepted')
+                    ON CONFLICT (user_id, friend_id) DO NOTHING
+                    """,
+                    values={"user_id": sub, "friend_id": bot_uuid},
+                )
+            except Exception as e:
+                logger.error(f"Non-fatal: failed to create bot friendship for {sub}: {e}")
 
         asyncio.run(_insert_db_row())
         return _response(200, {"message": "Success"})
