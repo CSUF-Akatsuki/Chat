@@ -33,7 +33,7 @@ const Home: React.FC = () => {
         {/* Logo section */}
         <div className="space-y-4 sm:space-y-6">
           <h1 className="font-bebas text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl tracking-wider leading-none">
-            SARCASM<span className="text-gray-400">SYNC</span>
+            SARCASM TEST<span className="text-gray-400">SYNC</span>
           </h1>
           <div className="w-16 sm:w-20 md:w-24 h-px bg-black mx-auto"></div>
           <p className="text-base sm:text-lg md:text-xl text-gray-600 font-light tracking-wide px-4">
