@@ -60,4 +60,4 @@ class LoggerSetup:
 
 
 # Create default application logger
-logger = LoggerSetup.setup_logger("Chat application sarcasm sync")
+logger = LoggerSetup.setup_logger("CPSC465Chat")

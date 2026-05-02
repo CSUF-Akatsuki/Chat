@@ -1,6 +1,6 @@
-# Room67 Chat — Terraform (Lambdas + Cognito)
+# CPSC465Chat — Terraform (Lambdas + Cognito)
 
-Provisions the new Lambda + API Gateway + Cognito stack for Room67 Chat. Existing infra (VPC, subnets, RDS, ElastiCache, NAT, ECS, ALB, CloudFront, S3, Secrets Manager) is **referenced via data sources** and not managed here — Option A from the architecture decision.
+Provisions the new Lambda + API Gateway + Cognito stack for CPSC465Chat. Existing infra (VPC, subnets, RDS, ElastiCache, NAT, ECS, ALB, CloudFront, S3, Secrets Manager) is **referenced via data sources** and not managed here — Option A from the architecture decision.
 
 ## What this creates
 

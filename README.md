@@ -1,4 +1,4 @@
-# Room67 Chat — Cloud-Native Messaging on AWS
+# CPSC465Chat — Cloud-Native Messaging on AWS
 
 A secure, scalable, browser-based real-time messaging application deployed on Amazon Web Services. The project demonstrates a hybrid serverless + container architecture: stateless REST endpoints run on AWS Lambda behind API Gateway, while stateful WebSocket connections run on ECS Fargate with Redis pub/sub for cross-instance fan-out.
 

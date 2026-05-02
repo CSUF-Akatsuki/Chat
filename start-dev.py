@@ -11,7 +11,7 @@ def run_command(command, check=True):
 
 def main():
     print("===")
-    print("Starting Sarcasm Sync Chat App Dev Environment")
+    print("Starting CPSC465Chat Dev Environment")
     print("===")
     print()
 

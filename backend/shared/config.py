@@ -11,7 +11,7 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    app_name: str = "Sarcasm Sync Chat App"
+    app_name: str = "CPSC465Chat"
     app_version: str = "1.0.0"
     debug: bool = False
     log_level: str = "INFO"
