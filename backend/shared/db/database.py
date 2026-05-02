@@ -157,6 +157,20 @@ async def get_user_by_username(username: str) -> Optional[dict]:
         raise
 
 
+async def get_user_by_cognito_sub(sub: str) -> Optional[dict]:
+    try:
+        row = await db_connection.fetch_one(
+            query="SELECT * FROM users WHERE cognito_sub = :sub",
+            values={"sub": sub},
+        )
+        return dict(row) if row else None
+    except Exception as e:
+        logger.error(
+            f"Error fetching user by cognito_sub '{sub}': {e}", exc_info=True
+        )
+        raise
+
+
 async def get_user_by_email(email: EmailStr) -> Optional[dict]:
     try:
         row = await db_connection.fetch_one(

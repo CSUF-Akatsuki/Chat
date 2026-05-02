@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from aws_lambda_powertools.utilities.data_classes import APIGatewayProxyEventV2
 from shared.config import settings
-from shared.db.database import db_connection, get_user_by_username
+from shared.db.database import db_connection, get_user_by_cognito_sub
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -110,10 +110,13 @@ async def get_database_user_from_event(api_event: APIGatewayProxyEventV2):
     if cognito_user is None:
         raise AuthError("Unauthorized: missing or invalid authorizer context")
 
-    if not cognito_user.username:
-        raise AuthError("Unauthorized: no username found in claims")
+    # Look up by sub (UUID PK), not username — Cognito lowercases usernames in
+    # JWT claims when the pool has case_sensitive=false, so a username match
+    # against the DB row breaks for any user who registered with capital letters.
+    if not cognito_user.user_id:
+        raise AuthError("Unauthorized: no sub found in claims")
 
-    user = await get_user_by_username(cognito_user.username)
+    user = await get_user_by_cognito_sub(cognito_user.user_id)
     if not user:
         raise AuthError("Unauthorized: user not found in DB")
 
