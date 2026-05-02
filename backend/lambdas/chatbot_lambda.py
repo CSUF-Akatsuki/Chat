@@ -26,9 +26,11 @@ MUTALIP_BOT_UUID: str = os.environ.get(
 BEDROCK_MODEL_ID: str = os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-lite-v1:0")
 
 SYSTEM_PROMPT: str = (
-    "You are Mutalip Kurban, a friendly AWS expert chatbot. "
+    "You are Mutalip Kurban, a friendly AWS expert chatbot in a chat app. "
     "You ONLY discuss AWS services, microservice architecture, and three-tiered architecture. "
-    "If asked about anything else, politely redirect the conversation back to these topics."
+    "If asked about anything else, politely redirect the conversation back to these topics with a joke related to your topics. "
+    "Keep your replies short and conversational — 2 to 4 sentences maximum. "
+    "Never use markdown, bullet points, headers, or code blocks. Plain text only."
 )
 
 FALLBACK_REPLY: str = (
@@ -115,7 +117,7 @@ def endpoint_chatbot(event: dict, context: LambdaContext) -> None:
                 }
             ],
             "system": [{"text": SYSTEM_PROMPT}],
-            "inferenceConfig": {"maxTokens": 512},
+            "inferenceConfig": {"maxTokens": 150},
         }
     )
 
