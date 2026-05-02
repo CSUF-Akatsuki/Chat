@@ -4,7 +4,7 @@ import os
 import json
 import boto3
 from shared.config import ALGORITHM, SECRET_KEY, settings
-from shared.db.database import get_user_by_username, init_db, db_connection, create_database_if_not_exists
+from shared.db.database import get_user_by_username, get_user_by_cognito_sub, init_db, db_connection, create_database_if_not_exists
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from shared.logger import logger
@@ -154,23 +154,24 @@ async def websocket_endpoint(websocket: WebSocket):
         # jwt verification
         try:
             payload = verify_token(token)
-            # Cognito puts the username in 'cognito:username'; fall back to
-            # 'username' (some flows) or 'sub' (the legacy custom-JWT shape).
-            username = (
-                payload.get("cognito:username")
-                or payload.get("username")
-                or payload.get("sub")
-            )
-
-            if not username:
+            # In Cognito mode `sub` is the UUID PK on users; in LOCAL_AUTH_MODE
+            # the legacy custom JWT puts the username in `sub`. Look up by sub
+            # against cognito_sub for Cognito (avoids the username-case mismatch
+            # caused by case_sensitive=false on the user pool), and fall back
+            # to the username path for local dev.
+            sub = payload.get("sub")
+            if not sub:
                 logger.warning("WebSocket: Invalid token payload")
                 await websocket.send_json({"type": "error", "content": "Invalid token"})
                 await websocket.close(code=1008, reason="Invalid token")
                 return
 
-            user = await get_user_by_username(username)
+            if LOCAL_AUTH_MODE:
+                user = await get_user_by_username(sub)
+            else:
+                user = await get_user_by_cognito_sub(sub)
             if not user:
-                logger.error(f"Websocket User not found {username}")
+                logger.error(f"Websocket User not found (sub={sub})")
                 await websocket.send_json(
                     {"type": "error", "content": "User not found"}
                 )
