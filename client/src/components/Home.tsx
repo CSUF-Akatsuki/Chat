@@ -5,25 +5,26 @@ const Home: React.FC = () => {
   const [currentQuote, setCurrentQuote] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const navigate = useNavigate();
-  const sarcasmQuotes = [
-    "Finally, a chat app that gets your dry humor.",
-    "Where your witty comebacks go to shine... or die trying.",
-    "Because the world needed another place for your hot takes.",
-    "Sarcasm so sharp, it might actually cut through the internet.",
-    "Warning: Side effects may include increased sass levels.",
+  const awsServices = [
+    "Amazon Bedrock — generative AI for the Mutalip chatbot.",
+    "AWS Lambda — every REST endpoint runs serverless.",
+    "Amazon Cognito — identity and JWT auth.",
+    "Amazon ElastiCache — Redis pub/sub for real-time delivery.",
+    "ECS Fargate + ALB — long-lived WebSocket connections.",
+    "Amazon RDS — PostgreSQL for users, friends, and message history.",
   ];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIsVisible(false);
       setTimeout(() => {
-        setCurrentQuote((prev) => (prev + 1) % sarcasmQuotes.length);
+        setCurrentQuote((prev) => (prev + 1) % awsServices.length);
         setIsVisible(true);
       }, 500);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [sarcasmQuotes.length]);
+  }, [awsServices.length]);
 
   return (
     <div className="min-h-screen bg-white text-black flex items-center justify-center px-4 py-8 sm:px-6 md:px-8 lg:px-12">
@@ -33,11 +34,11 @@ const Home: React.FC = () => {
         {/* Logo section */}
         <div className="space-y-4 sm:space-y-6">
           <h1 className="font-bebas text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl tracking-wider leading-none">
-            SARCASM TEST<span className="text-gray-400">SYNC</span>
+            CPSC465<span className="text-gray-400">CHAT</span>
           </h1>
           <div className="w-16 sm:w-20 md:w-24 h-px bg-black mx-auto"></div>
           <p className="text-base sm:text-lg md:text-xl text-gray-600 font-light tracking-wide px-4">
-            WHERE WIT MEETS WIT
+            A PLACE TO TALK ABOUT CLOUD SERVICES
           </p>
         </div>
 
@@ -50,7 +51,7 @@ const Home: React.FC = () => {
                 : "opacity-0 translate-y-4"
             }`}
           >
-            "{sarcasmQuotes[currentQuote]}"
+            "{awsServices[currentQuote]}"
           </p>
         </div>
 
@@ -61,10 +62,10 @@ const Home: React.FC = () => {
               <span className="font-bebas text-lg sm:text-xl">01</span>
             </div>
             <h3 className="font-bebas text-xl sm:text-2xl tracking-wider">
-              DETECTION
+              SERVERLESS
             </h3>
             <p className="text-gray-600 font-light leading-relaxed text-sm sm:text-base px-2 sm:px-0">
-              AI that actually gets sarcasm. Unlike some people we know.
+              Lambda for REST endpoints. ECS Fargate for real-time chat.
             </p>
           </div>
 
@@ -73,10 +74,10 @@ const Home: React.FC = () => {
               <span className="font-bebas text-lg sm:text-xl">02</span>
             </div>
             <h3 className="font-bebas text-xl sm:text-2xl tracking-wider">
-              SPEED
+              REAL-TIME
             </h3>
             <p className="text-gray-600 font-light leading-relaxed text-sm sm:text-base px-2 sm:px-0">
-              Faster than your regret after sending that message.
+              WebSockets over ALB, fanned out via ElastiCache Redis.
             </p>
           </div>
 
@@ -88,7 +89,7 @@ const Home: React.FC = () => {
               SECURE
             </h3>
             <p className="text-gray-600 font-light leading-relaxed text-sm sm:text-base px-2 sm:px-0">
-              More private than your thoughts. We promise.
+              Cognito identity, three-tier VPC, Secrets Manager for credentials.
             </p>
           </div>
         </div>
@@ -118,7 +119,7 @@ const Home: React.FC = () => {
 
           {/* Bottom text */}
           <p className="text-gray-400 text-xs sm:text-sm font-light tracking-wide px-4">
-            NO FEELINGS WERE HARMED IN THE MAKING OF THIS APP
+            BUILT ON AWS
           </p>
         </div>
       </div>
