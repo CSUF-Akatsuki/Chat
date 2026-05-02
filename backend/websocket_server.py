@@ -195,7 +195,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     },
                 }
             )
-            logger.info(f" WebSocket authenticated: {username} (ID: {user_id})")
+            logger.info(f" WebSocket authenticated: {user['username']} (ID: {user_id})")
 
         except jwt.ExpiredSignatureError:
             logger.warning("WebSocket: Token expired")
