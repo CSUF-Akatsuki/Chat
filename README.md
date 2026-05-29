@@ -15,8 +15,8 @@ Originally based on [fast-api-and-websockets-learning](https://github.com/anuz50
 | Name | GitHub | Role |
 |---|---|---|
 | Joshua Castaneda | ccastaneda85 | Team Lead / DevOps |
+| William Lim | FrewtyPebbles | Refactored backend application layer into serverless Lambda and ECS Fargate microservices. |
 | Tijany Momoh | 404Mamba | |
-| William Lim | FrewtyPebbles | |
 | Drew Butler | Druwby | |
 
 ---
